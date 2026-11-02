@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\MessagingController;
+use App\Http\Controllers\Api\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // GET  /api/clients  -> lista de clientes con su estado calculado por tiempo
@@ -13,3 +14,6 @@ Route::post('clients', [ClientController::class, 'store']);
 Route::middleware(['web', 'auth'])
     ->post('companies/{company}/send', [MessagingController::class, 'send'])
     ->name('api.companies.send');
+
+// Telegram envía aquí las respuestas del cliente (sin sesión; lo llama Telegram).
+Route::post('telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('api.telegram.webhook');

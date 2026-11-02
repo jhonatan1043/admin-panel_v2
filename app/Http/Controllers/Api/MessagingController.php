@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Button;
+use App\Models\ClientLog;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,8 @@ class MessagingController extends Controller
         $button = Button::findOrFail($data['button_id']);
 
         if (! $company->telegram_bot_token || ! $company->telegram_chat_id) {
+            $this->log($company, $button, 'failed', 'Cliente sin Telegram configurado.');
+
             return response()->json([
                 'ok' => false,
                 'message' => 'El cliente no tiene Telegram configurado (bot token o chat id).',
@@ -66,6 +69,8 @@ class MessagingController extends Controller
                 ['chat_id' => $company->telegram_chat_id, 'text' => $button->text]
             );
         } catch (\Throwable $e) {
+            $this->log($company, $button, 'failed', 'No se pudo conectar con Telegram.');
+
             return response()->json([
                 'ok' => false,
                 'message' => 'No se pudo conectar con Telegram.',
@@ -73,12 +78,28 @@ class MessagingController extends Controller
         }
 
         if ($resp->successful() && $resp->json('ok') === true) {
+            $this->log($company, $button, 'sent', 'Entregado a Telegram.');
+
             return response()->json(['ok' => true, 'message' => 'Mensaje enviado.']);
         }
 
-        return response()->json([
-            'ok' => false,
-            'message' => 'Telegram rechazó el envío: ' . ($resp->json('description') ?? 'error desconocido'),
-        ], 502);
+        $detail = 'Telegram rechazó: ' . ($resp->json('description') ?? 'error desconocido');
+        $this->log($company, $button, 'failed', $detail);
+
+        return response()->json(['ok' => false, 'message' => $detail], 502);
+    }
+
+    /** Registra un paso en la auditoría del cliente. */
+    private function log(Company $company, Button $button, string $status, string $detail): void
+    {
+        ClientLog::create([
+            'company_id' => $company->id,
+            'operator_id' => auth()->id(),
+            'direction' => 'out',
+            'label' => $button->label,
+            'text' => $button->text,
+            'status' => $status,
+            'detail' => $detail,
+        ]);
     }
 }

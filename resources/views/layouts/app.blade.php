@@ -17,6 +17,15 @@
         /* Colapso independiente de Tailwind: el cuerpo solo se ve en la tarjeta abierta. */
         .card-body { display: none; }
         .client-card.is-open .card-body { display: block; }
+        /* Scrollbar con estilo para el detalle. */
+        .detail-scroll { scrollbar-width: thin; scrollbar-color: rgba(16,185,129,.45) transparent; }
+        .detail-scroll::-webkit-scrollbar { width: 6px; }
+        .detail-scroll::-webkit-scrollbar-track { background: transparent; }
+        .detail-scroll::-webkit-scrollbar-thumb {
+            background: rgba(16,185,129,.4);
+            border-radius: 9999px;
+        }
+        .detail-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16,185,129,.7); }
     </style>
 </head>
 <body class="text-slate-100 min-h-screen">

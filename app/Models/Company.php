@@ -45,6 +45,11 @@ class Company extends Model
         return $this->belongsTo(User::class, 'operator_id');
     }
 
+    public function logs(): HasMany
+    {
+        return $this->hasMany(ClientLog::class)->latest();
+    }
+
     /** Minutos transcurridos desde la última actividad. */
     public function minutesSinceActivity(): int
     {

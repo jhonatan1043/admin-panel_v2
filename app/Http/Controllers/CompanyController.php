@@ -12,7 +12,7 @@ class CompanyController extends Controller
 {
     public function index()
     {
-        $companies = Company::with('operator')
+        $companies = Company::with(['operator', 'logs' => fn ($q) => $q->limit(15)])
             // El operador solo ve los clientes asignados a su id; el admin ve todos.
             ->when(auth()->user()->role !== 'admin', fn ($q) => $q->where('operator_id', auth()->id()))
             // Actividad más reciente primero (más "verde" arriba); el estado se calcula por tiempo.
