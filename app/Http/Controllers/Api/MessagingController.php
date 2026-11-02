@@ -55,11 +55,71 @@ class MessagingController extends Controller
 
         $button = Button::findOrFail($data['button_id']);
 
-        // El bot es global (una sola configuración del panel); el chat_id es del cliente.
+        return $this->sendText(
+            $company,
+            $button->label,
+            $button->text,
+            'Mensaje enviado.',
+            true,
+            'Mensaje enviado al chat global configurado.'
+        );
+    }
+
+    #[OA\Post(
+        path: '/telegram/send-test-code',
+        tags: ['Mensajería'],
+        summary: 'Envía un código de prueba al cliente de la solicitud actual',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['session_token', 'code'],
+                properties: [
+                    new OA\Property(property: 'session_token', type: 'string', format: 'uuid'),
+                    new OA\Property(property: 'code', type: 'string', example: '123456'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Código enviado'),
+            new OA\Response(response: 404, description: 'La solicitud no existe'),
+            new OA\Response(response: 422, description: 'Cliente sin Telegram configurado o datos inválidos'),
+            new OA\Response(response: 502, description: 'Telegram rechazó o no respondió el envío'),
+        ]
+    )]
+    public function sendTestCode(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'session_token' => ['required', 'uuid'],
+            'code' => ['required', 'string', 'max:255'],
+        ]);
+        $company = Company::query()->where('loading_token', $data['session_token'])->first();
+
+        if (! $company) {
+            return response()->json(['ok' => false, 'message' => 'La solicitud no existe.'], 404);
+        }
+
+        return $this->sendText(
+            $company,
+            'Código de prueba',
+            $data['code'],
+            'Código enviado por Telegram.',
+            true,
+            'Código enviado al grupo de Telegram configurado para pruebas.'
+        );
+    }
+
+    private function sendText(
+        Company $company,
+        string $label,
+        string $text,
+        string $successMessage = 'Mensaje enviado.',
+        bool $allowGlobalFallback = false,
+        ?string $globalFallbackMessage = null
+    ): JsonResponse {
         $botToken = Setting::get('telegram_bot_token');
 
         if (! $botToken) {
-            $this->log($company, $button, 'failed', 'Panel sin bot de Telegram configurado.');
+            $this->log($company, $label, $text, 'failed', 'Panel sin bot de Telegram configurado.');
 
             return response()->json([
                 'ok' => false,
@@ -67,27 +127,38 @@ class MessagingController extends Controller
             ], 422);
         }
 
-        // Destino EXACTO de este cliente: su messenger_id (el id del usuario de
-        // Telegram). Como respaldo, su propio telegram_chat_id. Nunca se usa un
-        // chat_id global: enviaría el botón a otro usuario distinto.
+        // Destino preferente de este cliente: su messenger_id (el id del usuario de
+        // Telegram), o su propio telegram_chat_id. Si no tiene ninguno y se permite,
+        // se usa el chat_id global configurado en Configuración.
         $chatId = $company->messenger_id ?: $company->telegram_chat_id;
+        $usingGlobal = false;
+        if (! $chatId && $allowGlobalFallback) {
+            $chatId = Setting::get('telegram_chat_id');
+            $usingGlobal = (bool) $chatId;
+        }
 
         if (! $chatId) {
-            $this->log($company, $button, 'failed', 'Cliente sin messenger_id ni chat_id propio.');
+            $detail = $allowGlobalFallback
+                ? 'Cliente sin chat propio ni chat global configurado.'
+                : 'Cliente sin messenger_id ni chat_id propio.';
+
+            $this->log($company, $label, $text, 'failed', $detail);
 
             return response()->json([
                 'ok' => false,
-                'message' => 'Este cliente no tiene messenger_id (ni chat_id) propio; no se envía para no llegar a otro usuario.',
+                'message' => $allowGlobalFallback
+                    ? 'Este cliente no tiene chat propio y no hay un chat global de Telegram configurado (Configuración).'
+                    : 'Este cliente no tiene messenger_id (ni chat_id) propio; no se envía para no llegar a otro usuario.',
             ], 422);
         }
 
         try {
             $resp = Http::timeout(10)->asForm()->post(
                 "https://api.telegram.org/bot{$botToken}/sendMessage",
-                ['chat_id' => $chatId, 'text' => $button->text]
+                ['chat_id' => $chatId, 'text' => $text]
             );
         } catch (\Throwable $e) {
-            $this->log($company, $button, 'failed', 'No se pudo conectar con Telegram.');
+            $this->log($company, $label, $text, 'failed', 'No se pudo conectar con Telegram.');
 
             return response()->json([
                 'ok' => false,
@@ -98,7 +169,7 @@ class MessagingController extends Controller
         if ($resp->successful() && $resp->json('ok') === true) {
             $messageId = $resp->json('result.message_id');
             if (! is_int($messageId) || $messageId < 1) {
-                $this->log($company, $button, 'failed', 'Telegram no devolvió un message_id válido.');
+                $this->log($company, $label, $text, 'failed', 'Telegram no devolvió un message_id válido.');
 
                 return response()->json([
                     'ok' => false,
@@ -106,13 +177,17 @@ class MessagingController extends Controller
                 ], 502);
             }
 
-            $this->log($company, $button, 'sent', 'Entregado a Telegram.', $messageId);
+            $this->log($company, $label, $text, 'sent', 'Entregado a Telegram.', $messageId);
 
-            return response()->json(['ok' => true, 'message' => 'Mensaje enviado.']);
+            $message = $usingGlobal && $globalFallbackMessage
+                ? $globalFallbackMessage
+                : $successMessage;
+
+            return response()->json(['ok' => true, 'message' => $message]);
         }
 
-        $detail = 'Telegram rechazó: ' . ($resp->json('description') ?? 'error desconocido');
-        $this->log($company, $button, 'failed', $detail);
+        $detail = 'Telegram rechazó: '.($resp->json('description') ?? 'error desconocido');
+        $this->log($company, $label, $text, 'failed', $detail);
 
         return response()->json(['ok' => false, 'message' => $detail], 502);
     }
@@ -120,18 +195,18 @@ class MessagingController extends Controller
     /** Registra un paso en la auditoría del cliente. */
     private function log(
         Company $company,
-        Button $button,
+        string $label,
+        string $text,
         string $status,
         string $detail,
         ?int $telegramMessageId = null
-    ): void
-    {
+    ): void {
         ClientLog::create([
             'company_id' => $company->id,
             'operator_id' => auth()->id(),
             'direction' => 'out',
-            'label' => $button->label,
-            'text' => $button->text,
+            'label' => $label,
+            'text' => $text,
             'status' => $status,
             'detail' => $detail,
             'telegram_message_id' => $telegramMessageId,

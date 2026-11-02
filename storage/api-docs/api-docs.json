@@ -134,7 +134,26 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Cliente creado"
+                        "description": "Cliente creado con identificador privado para esta solicitud",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "loading_token": {
+                                                    "description": "Token privado para consultar las respuestas de esta solicitud.",
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "200": {
                         "description": "Cliente actualizado"
@@ -198,16 +217,74 @@
                 }
             }
         },
+        "/telegram/send-test-code": {
+            "post": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Envía un código de prueba al cliente de la solicitud actual",
+                "operationId": "afc6fcabb83d8a403c32496683b8955a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_token",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "session_token": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "code": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Código enviado"
+                    },
+                    "404": {
+                        "description": "La solicitud no existe"
+                    },
+                    "422": {
+                        "description": "Cliente sin Telegram configurado o datos inválidos"
+                    },
+                    "502": {
+                        "description": "Telegram rechazó o no respondió el envío"
+                    }
+                }
+            }
+        },
         "/telegram/latest-message": {
             "get": {
                 "tags": [
                     "Mensajería"
                 ],
-                "summary": "Consulta el último mensaje del chat global configurado",
+                "summary": "Consulta el último mensaje enviado correctamente desde el panel",
                 "operationId": "d673dc158a42dd4cc8527bd6c3268003",
+                "parameters": [
+                    {
+                        "name": "session_token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Último mensaje recibido, o null si todavía no hay mensajes",
+                        "description": "Último mensaje enviado desde el panel, o null si todavía no hay envíos",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -215,12 +292,70 @@
                                         "data": {
                                             "properties": {
                                                 "mensaje": {
-                                                    "type": "string",
-                                                    "nullable": true
+                                                    "type": "string"
+                                                },
+                                                "message_id": {
+                                                    "type": "integer"
                                                 }
                                             },
                                             "type": "object",
                                             "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/use-message": {
+            "post": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Marca como usado el último mensaje enviado desde el panel",
+                "operationId": "23304b4a48765054a541d1facfc61cab",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_token",
+                                    "message_id"
+                                ],
+                                "properties": {
+                                    "session_token": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "message_id": {
+                                        "type": "integer",
+                                        "example": 42
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Indica si el mensaje todavía era el último y quedó marcado como usado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "used": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
