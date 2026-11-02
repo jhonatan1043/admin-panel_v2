@@ -13,6 +13,12 @@
     </div>
 
     <div>
+        <label class="block text-sm mb-1">Empresa (de dónde viene el cliente)</label>
+        <input type="text" name="empresa" value="{{ old('empresa', $company->empresa) }}"
+               class="w-full rounded bg-slate-800 border border-slate-600 px-3 py-2 text-sm">
+    </div>
+
+    <div>
         <label class="block text-sm mb-1">Estado</label>
         <select name="status" class="w-full rounded bg-slate-800 border border-slate-600 px-3 py-2 text-sm">
             @foreach (['active' => 'Activo (verde)', 'pending' => 'Pendiente (amarillo)', 'offline' => 'Desconectado (gris)', 'deletable' => 'Borrable (rojo)'] as $value => $label)

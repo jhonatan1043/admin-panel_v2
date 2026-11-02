@@ -5,6 +5,10 @@
         <span class="inline-block h-2.5 w-2.5 rounded-full"
               style="background: {{ $s['dot'] }}; box-shadow: 0 0 10px 2px {{ $s['ring'] }};"></span>
         <span class="text-[10px] tracking-widest {{ $s['text'] }}">{{ $s['label'] }}</span>
+        @if ($company->empresa)
+            <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
+                  title="Empresa de origen">{{ $company->empresa }}</span>
+        @endif
         @if ($company->current_status === 'deletable')
             <div class="ml-auto flex items-center gap-2 text-[10px]">
                 <form action="{{ route('companies.destroy', $company) }}" method="POST"
@@ -17,7 +21,13 @@
         @endif
     </div>
 
-    <div class="text-lg font-semibold tracking-wide mt-2">{{ $company->name ?: $company->registro }}</div>
+    <div class="mt-2 flex items-baseline gap-2">
+        <span class="text-lg font-semibold tracking-wide">{{ $company->name ?: $company->registro }}</span>
+        @php $fecha = $company->fecha ?? $company->last_activity_at; @endphp
+        @if ($fecha)
+            <span class="text-[10px] text-slate-500">{{ $fecha->format('d/m/Y H:i') }}</span>
+        @endif
+    </div>
 
     @if (auth()->user()->role === 'admin')
         @php $op = $company->operator; @endphp

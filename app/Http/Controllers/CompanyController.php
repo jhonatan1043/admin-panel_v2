@@ -105,6 +105,7 @@ class CompanyController extends Controller
                 'unique:companies,registro' . ($company ? ',' . $company->id : ''),
             ],
             'name' => ['nullable', 'string', 'max:255'],
+            'empresa' => ['nullable', 'string', 'max:255'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:active,pending,offline,deletable'],

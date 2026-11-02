@@ -18,6 +18,8 @@ class Company extends Model
         'operator_id',
         'registro',
         'name',
+        'empresa',
+        'fecha',
         'telegram_bot_token',
         'telegram_chat_id',
         'loading_image_path',
@@ -32,6 +34,7 @@ class Company extends Model
 
     protected $casts = [
         'last_activity_at' => 'datetime',
+        'fecha' => 'datetime',
         'data' => 'array',
     ];
 

@@ -37,12 +37,23 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "registro"
+                                    "registro",
+                                    "empresa",
+                                    "fecha"
                                 ],
                                 "properties": {
                                     "registro": {
                                         "type": "string",
                                         "example": "REG-0001"
+                                    },
+                                    "empresa": {
+                                        "type": "string",
+                                        "example": "Acme S.A."
+                                    },
+                                    "fecha": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-11-02 09:30"
                                     },
                                     "name": {
                                         "type": "string",
@@ -53,6 +64,7 @@
                                         "example": "123456789"
                                     },
                                     "data": {
+                                        "description": "Cualquier otro dato libre",
                                         "type": "object",
                                         "example": {
                                             "plan": "premium",
@@ -127,6 +139,51 @@
                     },
                     "502": {
                         "description": "Telegram rechazó o no respondió el envío"
+                    }
+                }
+            }
+        },
+        "/telegram/webhook": {
+            "post": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Recibe las respuestas del cliente desde Telegram",
+                "description": "Telegram envía aquí cada mensaje del cliente. Se asocia por chat_id al cliente y queda en su detalle como mensaje entrante.",
+                "operationId": "36223551292e91c24b3d9b42f9353ffc",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "message": {
+                                        "properties": {
+                                            "text": {
+                                                "type": "string",
+                                                "example": "solicitud"
+                                            },
+                                            "chat": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": -1001234567890
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Recibido"
                     }
                 }
             }

@@ -38,19 +38,21 @@ class DemoSeeder extends Seeder
 
         $operatorId = User::where('username', 'operador')->value('id');
 
-        // [registro, nombre, minutos desde última actividad, asignado al operador, botones]
+        // [registro, nombre, empresa, minutos desde última actividad, asignado al operador, botones]
         $data = [
-            ['REG-0001', 'Juan Pérez',    2,  true,  ['Sux', 'Licencia', 'Paquete 1']],
-            ['REG-0002', 'María López',   5,  false, ['Bienvenida', 'Oferta', 'Soporte']],
-            ['REG-0003', 'Carlos Ruiz',   15, true,  ['En espera', 'Confirmar']],
-            ['REG-0004', 'Ana Gómez',     40, false, []],
-            ['REG-0005', 'Pedro Sánchez', 90, true,  ['Expirado']],
+            ['REG-0001', 'Juan Pérez',    'Acme S.A.',    2,  true,  ['Sux', 'Licencia', 'Paquete 1']],
+            ['REG-0002', 'María López',   'Globex',       5,  false, ['Bienvenida', 'Oferta', 'Soporte']],
+            ['REG-0003', 'Carlos Ruiz',   'Acme S.A.',    15, true,  ['En espera', 'Confirmar']],
+            ['REG-0004', 'Ana Gómez',     'Initech',      40, false, []],
+            ['REG-0005', 'Pedro Sánchez', 'Globex',       90, true,  ['Expirado']],
         ];
 
-        foreach ($data as [$registro, $name, $minutes, $mine, $buttons]) {
+        foreach ($data as [$registro, $name, $empresa, $minutes, $mine, $buttons]) {
             $company = Company::firstOrNew(['registro' => $registro]);
             $company->fill([
                 'name' => $name,
+                'empresa' => $empresa,
+                'fecha' => now()->subMinutes($minutes),
                 'last_activity_at' => now()->subMinutes($minutes),
                 'operator_id' => $mine ? $operatorId : null,
             ])->save();

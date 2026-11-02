@@ -37,12 +37,14 @@ class ClientController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['registro'],
+                required: ['registro', 'empresa', 'fecha'],
                 properties: [
                     new OA\Property(property: 'registro', type: 'string', example: 'REG-0001'),
+                    new OA\Property(property: 'empresa', type: 'string', example: 'Acme S.A.'),
+                    new OA\Property(property: 'fecha', type: 'string', format: 'date-time', example: '2026-11-02 09:30'),
                     new OA\Property(property: 'name', type: 'string', example: 'Juan Pérez'),
                     new OA\Property(property: 'telegram_chat_id', type: 'string', example: '123456789'),
-                    new OA\Property(property: 'data', type: 'object', example: ['plan' => 'premium', 'origen' => 'web']),
+                    new OA\Property(property: 'data', type: 'object', description: 'Cualquier otro dato libre', example: ['plan' => 'premium', 'origen' => 'web']),
                 ]
             )
         ),
@@ -56,6 +58,8 @@ class ClientController extends Controller
     {
         $data = $request->validate([
             'registro' => ['required', 'string', 'max:255'],
+            'empresa' => ['required', 'string', 'max:255'],
+            'fecha' => ['required', 'date'],
             'name' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
             'data' => ['nullable', 'array'],
@@ -78,6 +82,8 @@ class ClientController extends Controller
         return [
             'registro' => $c->registro,
             'name' => $c->name,
+            'empresa' => $c->empresa,
+            'fecha' => $c->fecha?->toIso8601String(),
             'status' => $c->current_status,
             'last_activity_at' => $c->last_activity_at?->toIso8601String(),
             'minutes_since_activity' => $c->minutesSinceActivity(),
