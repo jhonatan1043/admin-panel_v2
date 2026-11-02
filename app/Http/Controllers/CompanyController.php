@@ -27,7 +27,12 @@ class CompanyController extends Controller
             ? User::where('role', 'operador')->orderBy('name')->get()
             : collect();
 
-        return view('companies.index', compact('companies', 'buttons', 'operators'));
+        // Tablero dividido por empresa; cada grupo mantiene su orden por actividad.
+        $companiesByEmpresa = $companies
+            ->groupBy(fn (Company $c) => $c->empresa ?: 'Sin empresa')
+            ->sortKeys();
+
+        return view('companies.index', compact('companies', 'buttons', 'operators', 'companiesByEmpresa'));
     }
 
     /** Asigna (o quita) el operador de un cliente. Solo admin. */

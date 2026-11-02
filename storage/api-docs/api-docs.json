@@ -29,7 +29,7 @@
                 "tags": [
                     "Clientes"
                 ],
-                "summary": "Registra un cliente nuevo o refresca su actividad",
+                "summary": "Registra un cliente nuevo (el registro se genera internamente)",
                 "operationId": "74a35b85418e09c2489915865dd22445",
                 "requestBody": {
                     "required": true,
@@ -37,15 +37,10 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "registro",
                                     "empresa",
                                     "fecha"
                                 ],
                                 "properties": {
-                                    "registro": {
-                                        "type": "string",
-                                        "example": "REG-0001"
-                                    },
                                     "empresa": {
                                         "type": "string",
                                         "example": "Acme S.A."
@@ -70,6 +65,12 @@
                                             "plan": "premium",
                                             "origen": "web"
                                         }
+                                    },
+                                    "registro": {
+                                        "description": "Generado por el servidor; se devuelve en la respuesta.",
+                                        "type": "string",
+                                        "readOnly": true,
+                                        "example": "REG-0001"
                                     }
                                 },
                                 "type": "object"

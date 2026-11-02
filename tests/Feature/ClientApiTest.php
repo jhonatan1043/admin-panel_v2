@@ -10,50 +10,50 @@ class ClientApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_crear_cliente_requiere_registro_empresa_y_fecha(): void
+    public function test_crear_cliente_requiere_empresa_y_fecha_pero_no_registro(): void
     {
         $this->postJson('/api/clients', [])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['registro', 'empresa', 'fecha']);
+            ->assertJsonValidationErrors(['empresa', 'fecha'])
+            ->assertJsonMissingValidationErrors(['registro']);
     }
 
-    public function test_crea_cliente_con_datos_validos_y_el_resto_en_data(): void
+    public function test_crea_cliente_con_registro_generado_internamente(): void
     {
         $payload = [
-            'registro' => 'REG-9',
             'empresa' => 'Acme S.A.',
             'fecha' => '2026-11-02 09:30',
             'name' => 'Juan',
-            'data' => ['plan' => 'premium', 'origen' => 'web'],
+            'registro' => 'HACKEADO',      // se ignora: el servidor lo genera
+            'data' => ['plan' => 'premium'],
         ];
 
-        $this->postJson('/api/clients', $payload)
+        $response = $this->postJson('/api/clients', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.registro', 'REG-9')
             ->assertJsonPath('data.empresa', 'Acme S.A.')
             ->assertJsonPath('data.status', 'active')
             ->assertJsonPath('data.data.plan', 'premium');
 
-        $this->assertDatabaseHas('companies', ['registro' => 'REG-9', 'empresa' => 'Acme S.A.']);
+        $registro = $response->json('data.registro');
+        $this->assertMatchesRegularExpression('/^REG-\d{4,}$/', $registro);
+        $this->assertNotSame('HACKEADO', $registro);
+        $this->assertDatabaseHas('companies', ['registro' => $registro, 'empresa' => 'Acme S.A.']);
     }
 
-    public function test_segundo_post_refresca_y_no_duplica(): void
+    public function test_cada_post_crea_un_cliente_nuevo_con_registro_distinto(): void
     {
-        Company::create([
-            'registro' => 'REG-9', 'empresa' => 'Acme', 'fecha' => now()->subHour(),
-            'last_activity_at' => now()->subHour(),
-        ]);
+        $r1 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
+            ->assertCreated()->json('data.registro');
+        $r2 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
+            ->assertCreated()->json('data.registro');
 
-        $this->postJson('/api/clients', ['registro' => 'REG-9', 'empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'active');
-
-        $this->assertSame(1, Company::where('registro', 'REG-9')->count());
+        $this->assertNotSame($r1, $r2);
+        $this->assertSame(2, Company::count());
     }
 
     public function test_listado_devuelve_los_clientes(): void
     {
-        Company::create(['registro' => 'REG-1', 'empresa' => 'A', 'fecha' => now(), 'last_activity_at' => now()]);
+        Company::create(['registro' => 'REG-0001', 'empresa' => 'A', 'fecha' => now(), 'last_activity_at' => now()]);
 
         $this->getJson('/api/clients')
             ->assertOk()

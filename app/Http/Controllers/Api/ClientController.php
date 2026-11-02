@@ -33,18 +33,18 @@ class ClientController extends Controller
     #[OA\Post(
         path: '/clients',
         tags: ['Clientes'],
-        summary: 'Registra un cliente nuevo o refresca su actividad',
+        summary: 'Registra un cliente nuevo (el registro se genera internamente)',
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['registro', 'empresa', 'fecha'],
+                required: ['empresa', 'fecha'],
                 properties: [
-                    new OA\Property(property: 'registro', type: 'string', example: 'REG-0001'),
                     new OA\Property(property: 'empresa', type: 'string', example: 'Acme S.A.'),
                     new OA\Property(property: 'fecha', type: 'string', format: 'date-time', example: '2026-11-02 09:30'),
                     new OA\Property(property: 'name', type: 'string', example: 'Juan Pérez'),
                     new OA\Property(property: 'telegram_chat_id', type: 'string', example: '123456789'),
                     new OA\Property(property: 'data', type: 'object', description: 'Cualquier otro dato libre', example: ['plan' => 'premium', 'origen' => 'web']),
+                    new OA\Property(property: 'registro', type: 'string', readOnly: true, description: 'Generado por el servidor; se devuelve en la respuesta.', example: 'REG-0001'),
                 ]
             )
         ),
@@ -56,8 +56,8 @@ class ClientController extends Controller
     )]
     public function store(Request $request): JsonResponse
     {
+        // El registro NO se recibe: es un identificador interno que genera el servidor.
         $data = $request->validate([
-            'registro' => ['required', 'string', 'max:255'],
             'empresa' => ['required', 'string', 'max:255'],
             'fecha' => ['required', 'date'],
             'name' => ['nullable', 'string', 'max:255'],
@@ -65,15 +65,17 @@ class ClientController extends Controller
             'data' => ['nullable', 'array'],
         ]);
 
-        $client = Company::firstOrNew(['registro' => $data['registro']]);
-        $client->fill($data);
+        $client = new Company($data);
         $client->last_activity_at = now();
-        $created = ! $client->exists;
+        $client->save();
+
+        // Registro interno derivado del id, estable y único.
+        $client->registro = 'REG-'.str_pad((string) $client->id, 4, '0', STR_PAD_LEFT);
         $client->save();
 
         return response()->json(
             ['data' => $this->present($client->load('messageTemplates'))],
-            $created ? 201 : 200
+            201
         );
     }
 
