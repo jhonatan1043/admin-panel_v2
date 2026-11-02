@@ -49,6 +49,8 @@
                            class="{{ $item }} {{ request()->routeIs('buttons.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Botones</a>
                         <a href="{{ route('apis.index') }}"
                            class="{{ $item }} {{ request()->routeIs('apis.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">APIs</a>
+                        <a href="{{ route('settings.edit') }}"
+                           class="{{ $item }} {{ request()->routeIs('settings.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Configuración</a>
                     </div>
                 @endif
             @endauth

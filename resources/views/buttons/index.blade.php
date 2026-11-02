@@ -24,7 +24,10 @@
             <textarea name="text" rows="1" placeholder="Texto que se envía al cliente" required
                       class="flex-1 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm"></textarea>
         </div>
-        <div class="text-right mt-2">
+        <div class="flex items-center justify-between mt-2">
+            <label class="text-xs text-slate-300 flex items-center gap-1">
+                <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true))> Activo
+            </label>
             <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1.5 rounded">
                 + Agregar botón
             </button>

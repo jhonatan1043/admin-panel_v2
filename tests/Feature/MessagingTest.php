@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Button;
 use App\Models\Company;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -34,12 +35,13 @@ class MessagingTest extends TestCase
             ->assertStatus(401);
     }
 
-    public function test_falla_si_el_cliente_no_tiene_telegram_y_registra_el_intento(): void
+    public function test_falla_si_no_hay_bot_global_configurado(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        $company = $this->company();
+        $company = $this->company(['telegram_chat_id' => '123']);
         $button = $this->button();
 
+        // Sin bot global configurado.
         $this->actingAs($admin)
             ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
             ->assertStatus(422)
@@ -54,8 +56,10 @@ class MessagingTest extends TestCase
     {
         Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []], 200)]);
 
+        Setting::put('telegram_bot_token', 'token-global'); // bot global del panel
+
         $admin = User::factory()->create(['role' => 'admin']);
-        $company = $this->company(['telegram_bot_token' => 'token', 'telegram_chat_id' => '123']);
+        $company = $this->company(['telegram_chat_id' => '123']);
         $button = $this->button();
 
         $this->actingAs($admin)
@@ -63,6 +67,28 @@ class MessagingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true);
 
+        $this->assertDatabaseHas('client_logs', [
+            'company_id' => $company->id, 'direction' => 'out', 'status' => 'sent',
+        ]);
+    }
+
+    public function test_usa_el_chat_id_global_cuando_el_cliente_no_tiene(): void
+    {
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+        Setting::put('telegram_bot_token', 'token-global');
+        Setting::put('telegram_chat_id', '-100777'); // chat_id global de respaldo
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $company = $this->company(['telegram_chat_id' => null]); // cliente sin chat_id propio
+        $button = $this->button();
+
+        $this->actingAs($admin)
+            ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        Http::assertSent(fn ($req) => $req['chat_id'] === '-100777');
         $this->assertDatabaseHas('client_logs', [
             'company_id' => $company->id, 'direction' => 'out', 'status' => 'sent',
         ]);

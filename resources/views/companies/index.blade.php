@@ -2,35 +2,8 @@
 
 @section('title', 'Clientes')
 
-@php
-    // Estilo por estado: borde superior, glow del punto y etiqueta.
-    $styles = [
-        'active'  => ['dot' => '#22c55e', 'ring' => 'rgba(34,197,94,.45)',  'label' => 'EN LÍNEA',     'text' => 'text-emerald-300'],
-        'pending' => ['dot' => '#f59e0b', 'ring' => 'rgba(245,158,11,.45)', 'label' => 'PENDIENTE',    'text' => 'text-amber-300'],
-        'offline' => ['dot' => '#64748b', 'ring' => 'rgba(100,116,139,.35)','label' => 'DESCONECTADO', 'text' => 'text-slate-400'],
-        'deletable' => ['dot' => '#ef4444', 'ring' => 'rgba(239,68,68,.45)', 'label' => 'BORRABLE',     'text' => 'text-red-400'],
-    ];
-    $counts = $companies->groupBy('current_status')->map->count();
-    $active = $companies->where('current_status', 'active');
-    $others = $companies->where('current_status', '!==', 'active');
-@endphp
-
 @section('content')
-    <div class="flex flex-wrap items-center gap-3 mb-5 text-xs">
-        <span class="text-slate-400">Clientes:</span>
-        <span class="rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 px-2 py-1">
-            En línea: {{ $counts['active'] ?? 0 }}
-        </span>
-        <span class="rounded border border-amber-500/40 bg-amber-500/10 text-amber-300 px-2 py-1">
-            Pendientes: {{ $counts['pending'] ?? 0 }}
-        </span>
-        <span class="rounded border border-slate-500/40 bg-slate-500/10 text-slate-300 px-2 py-1">
-            Desconectados: {{ $counts['offline'] ?? 0 }}
-        </span>
-        <span class="ml-auto text-slate-500">Total: {{ $companies->count() }}</span>
-    </div>
-
-    {{-- Filtro: por empresa y por búsqueda (nombre o registro). --}}
+    {{-- Filtro: por empresa y por búsqueda (nombre o registro). Estático: no se recarga con el polling. --}}
     @if ($companies->isNotEmpty())
         <div class="flex flex-wrap items-center gap-2 mb-5 text-xs">
             <select id="filtro-empresa"
@@ -44,59 +17,16 @@
                    placeholder="Buscar por nombre o registro…"
                    class="rounded bg-slate-800 border border-slate-600 px-3 py-1.5 text-slate-200 flex-1 min-w-[180px]">
             <span id="filtro-vacio" class="hidden text-slate-500">Sin coincidencias.</span>
+            <span id="live-dot" class="ml-auto flex items-center gap-1.5 text-[10px] text-slate-500" title="Actualización en vivo">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> en vivo
+            </span>
         </div>
     @endif
 
-    @if ($companies->isEmpty())
-        <p class="text-slate-400 text-sm">Aún no hay clientes. Crea el primer registro.</p>
-    @else
-        {{-- Una sección por empresa, a lo ancho, separadas por una línea divisoria. --}}
-        @foreach ($companiesByEmpresa as $empresa => $group)
-            @php
-                $gActive = $group->where('current_status', 'active');
-                $gOthers = $group->where('current_status', '!==', 'active');
-            @endphp
-
-            <section class="empresa-group" data-empresa="{{ $empresa }}">
-                {{-- Línea que divide la pantalla entre empresas --}}
-                @unless ($loop->first)
-                    <hr class="empresa-divider my-6 border-0 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent">
-                @endunless
-
-                {{-- Nombre de la empresa arriba del grupo --}}
-                <h2 class="flex items-center gap-2 mb-3 text-sm font-semibold tracking-wide text-indigo-200">
-                    {{ $empresa }}
-                    <span class="text-[10px] font-normal text-slate-500">
-                        · <span class="text-emerald-400">{{ $gActive->count() }} en línea</span> · {{ $group->count() }} total
-                    </span>
-                </h2>
-
-                @if ($gActive->isNotEmpty())
-                    <div class="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
-                        @foreach ($gActive as $company)
-                            @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $buttons])
-                        @endforeach
-                    </div>
-                @else
-                    <p class="text-slate-600 text-xs">Nadie en línea.</p>
-                @endif
-
-                {{-- El resto, agrupado y colapsado. --}}
-                @if ($gOthers->isNotEmpty())
-                    <details class="mt-3">
-                        <summary class="cursor-pointer select-none text-[10px] tracking-widest text-slate-500 hover:text-slate-300">
-                            OTROS ({{ $gOthers->count() }})
-                        </summary>
-                        <div class="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))] mt-3 opacity-80">
-                            @foreach ($gOthers as $company)
-                                @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $buttons])
-                            @endforeach
-                        </div>
-                    </details>
-                @endif
-            </section>
-        @endforeach
-    @endif
+    {{-- La grilla se refresca sola por polling; su contenido viene de companies._board. --}}
+    <div id="board">
+        @include('companies._board')
+    </div>
 
     <script>
         // Presionar un botón: confirma con SweetAlert y envía el texto al Telegram del cliente.
@@ -155,39 +85,92 @@
         });
 
         // Filtro del tablero: por empresa y por texto (nombre o registro).
-        (function () {
+        function aplicarFiltro() {
             var selEmpresa = document.getElementById('filtro-empresa');
             var inpBusqueda = document.getElementById('filtro-busqueda');
             var vacio = document.getElementById('filtro-vacio');
             if (!selEmpresa) return;
 
-            function aplicar() {
-                var emp = selEmpresa.value.toLowerCase();
-                var q = (inpBusqueda.value || '').trim().toLowerCase();
-                var totalVisibles = 0;
+            var emp = selEmpresa.value.toLowerCase();
+            var q = (inpBusqueda.value || '').trim().toLowerCase();
+            var totalVisibles = 0;
 
-                document.querySelectorAll('.empresa-group').forEach(function (sec) {
-                    var empOk = !emp || (sec.dataset.empresa || '').toLowerCase() === emp;
-                    var visibles = 0;
+            document.querySelectorAll('.empresa-group').forEach(function (sec) {
+                var empOk = !emp || (sec.dataset.empresa || '').toLowerCase() === emp;
+                var visibles = 0;
 
-                    sec.querySelectorAll('.client-card').forEach(function (card) {
-                        var match = empOk && (!q || (card.dataset.search || '').indexOf(q) !== -1);
-                        card.style.display = match ? '' : 'none';
-                        if (match) visibles++;
-                    });
-
-                    // Al buscar, abre "OTROS" para revelar coincidencias ocultas.
-                    sec.querySelectorAll('details').forEach(function (d) { d.open = !!q; });
-
-                    sec.style.display = (empOk && visibles > 0) ? '' : 'none';
-                    totalVisibles += visibles;
+                sec.querySelectorAll('.client-card').forEach(function (card) {
+                    var match = empOk && (!q || (card.dataset.search || '').indexOf(q) !== -1);
+                    card.style.display = match ? '' : 'none';
+                    if (match) visibles++;
                 });
 
-                if (vacio) vacio.classList.toggle('hidden', totalVisibles > 0);
+                // Al buscar, abre "OTROS" para revelar coincidencias ocultas.
+                sec.querySelectorAll('details').forEach(function (d) { d.open = !!q; });
+
+                sec.style.display = (empOk && visibles > 0) ? '' : 'none';
+                totalVisibles += visibles;
+            });
+
+            if (vacio) vacio.classList.toggle('hidden', totalVisibles > 0);
+        }
+
+        (function () {
+            var selEmpresa = document.getElementById('filtro-empresa');
+            var inpBusqueda = document.getElementById('filtro-busqueda');
+            if (selEmpresa) selEmpresa.addEventListener('change', aplicarFiltro);
+            if (inpBusqueda) inpBusqueda.addEventListener('input', aplicarFiltro);
+        })();
+
+        // Tablero en vivo: refresca la grilla cada 5s sin recargar la página.
+        (function () {
+            var BOARD_URL = @json(route('companies.board'));
+            var INTERVALO = 5000;
+
+            function refrescar() {
+                // No interrumpir si hay una tarjeta abierta o un diálogo (SweetAlert).
+                if (document.querySelector('.client-card.is-open')) return;
+                if (document.querySelector('.swal2-container')) return;
+
+                fetch(BOARD_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (res) { return res.ok ? res.text() : null; })
+                    .then(function (html) {
+                        if (html === null) return;
+                        var board = document.getElementById('board');
+                        if (!board) return;
+                        board.innerHTML = html;
+                        aplicarFiltro(); // mantener el filtro activo tras refrescar
+                    })
+                    .catch(function () { /* silencio: reintenta en el próximo ciclo */ });
             }
 
-            selEmpresa.addEventListener('change', aplicar);
-            inpBusqueda.addEventListener('input', aplicar);
+            setInterval(refrescar, INTERVALO);
+        })();
+
+        // Conversación en vivo: mientras una tarjeta está abierta, refresca solo su detalle.
+        (function () {
+            function refrescarDetalle() {
+                var abierta = document.querySelector('.client-card.is-open');
+                if (!abierta) return;
+                if (document.querySelector('.swal2-container')) return;
+
+                var cont = abierta.querySelector('.card-detail');
+                if (!cont || !cont.dataset.detail) return;
+
+                fetch('/companies/' + cont.dataset.detail + '/detail', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (res) { return res.ok ? res.text() : null; })
+                    .then(function (html) {
+                        if (html === null || !abierta.classList.contains('is-open')) return;
+                        var prev = cont.querySelector('.detail-scroll');
+                        var top = prev ? prev.scrollTop : 0;
+                        cont.innerHTML = html;
+                        var nuevo = cont.querySelector('.detail-scroll');
+                        if (nuevo) nuevo.scrollTop = top; // conservar la posición de lectura
+                    })
+                    .catch(function () { /* silencio */ });
+            }
+
+            setInterval(refrescarDetalle, 4000);
         })();
     </script>
 @endsection

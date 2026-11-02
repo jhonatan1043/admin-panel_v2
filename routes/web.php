@@ -6,6 +6,7 @@ use App\Http\Controllers\ButtonController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\OperatorController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('companies.index'));
@@ -19,6 +20,11 @@ Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->na
 
 // Panel (requiere sesión iniciada)
 Route::middleware('auth')->group(function () {
+    // Tablero en vivo (polling): devuelve solo la grilla actualizada.
+    Route::get('companies/board', [CompanyController::class, 'board'])->name('companies.board');
+    // Conversación en vivo de la tarjeta abierta.
+    Route::get('companies/{company}/detail', [CompanyController::class, 'detail'])->name('companies.detail');
+
     Route::resource('companies', CompanyController::class)->except('show');
 
     Route::post('companies/{company}/templates', [MessageTemplateController::class, 'store'])
@@ -46,5 +52,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('apis', [ApiDocsController::class, 'index'])->name('apis.index');
         Route::get('apis/spec', [ApiDocsController::class, 'spec'])->name('apis.spec');
+
+        // Configuración global (incluye el bot de Telegram del panel).
+        Route::get('configuracion', [SettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('configuracion', [SettingsController::class, 'update'])->name('settings.update');
     });
 });

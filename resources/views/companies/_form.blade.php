@@ -28,15 +28,11 @@
     </div>
 
     <div>
-        <label class="block text-sm mb-1">Telegram bot token</label>
-        <input type="text" name="telegram_bot_token" value="{{ old('telegram_bot_token', $company->telegram_bot_token) }}"
-               class="w-full rounded bg-slate-800 border border-slate-600 px-3 py-2 text-sm" autocomplete="off">
-    </div>
-
-    <div>
         <label class="block text-sm mb-1">Telegram chat ID</label>
         <input type="text" name="telegram_chat_id" value="{{ old('telegram_chat_id', $company->telegram_chat_id) }}"
                class="w-full rounded bg-slate-800 border border-slate-600 px-3 py-2 text-sm">
+        <p class="mt-1 text-[11px] text-slate-500">El bot de Telegram se configura una sola vez en
+            <a href="{{ route('settings.edit') }}" class="text-sky-400 hover:text-sky-300">Configuración</a>.</p>
     </div>
 
     <div>

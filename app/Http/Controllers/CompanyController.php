@@ -12,6 +12,32 @@ class CompanyController extends Controller
 {
     public function index()
     {
+        return view('companies.index', $this->boardData());
+    }
+
+    /** Solo la grilla del tablero (para refresco en vivo por polling). */
+    public function board()
+    {
+        return view('companies._board', $this->boardData());
+    }
+
+    /** Conversación de un cliente (para refresco en vivo de la tarjeta abierta). */
+    public function detail(Company $company)
+    {
+        // El operador solo ve la conversación de sus clientes.
+        abort_unless(
+            auth()->user()->role === 'admin' || $company->operator_id === auth()->id(),
+            403
+        );
+
+        $company->load(['logs' => fn ($q) => $q->limit(15)]);
+
+        return view('companies._detail', compact('company'));
+    }
+
+    /** Datos compartidos por el tablero completo y su refresco en vivo. */
+    private function boardData(): array
+    {
         $companies = Company::with(['operator', 'logs' => fn ($q) => $q->limit(15)])
             // El operador solo ve los clientes asignados a su id; el admin ve todos.
             ->when(auth()->user()->role !== 'admin', fn ($q) => $q->where('operator_id', auth()->id()))
@@ -32,7 +58,7 @@ class CompanyController extends Controller
             ->groupBy(fn (Company $c) => $c->empresa ?: 'Sin empresa')
             ->sortKeys();
 
-        return view('companies.index', compact('companies', 'buttons', 'operators', 'companiesByEmpresa'));
+        return compact('companies', 'buttons', 'operators', 'companiesByEmpresa');
     }
 
     /** Asigna (o quita) el operador de un cliente. Solo admin. */

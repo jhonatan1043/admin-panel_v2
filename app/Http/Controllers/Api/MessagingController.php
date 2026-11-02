@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Button;
 use App\Models\ClientLog;
 use App\Models\Company;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -54,19 +55,34 @@ class MessagingController extends Controller
 
         $button = Button::findOrFail($data['button_id']);
 
-        if (! $company->telegram_bot_token || ! $company->telegram_chat_id) {
-            $this->log($company, $button, 'failed', 'Cliente sin Telegram configurado.');
+        // El bot es global (una sola configuración del panel); el chat_id es del cliente.
+        $botToken = Setting::get('telegram_bot_token');
+
+        if (! $botToken) {
+            $this->log($company, $button, 'failed', 'Panel sin bot de Telegram configurado.');
 
             return response()->json([
                 'ok' => false,
-                'message' => 'El cliente no tiene Telegram configurado (bot token o chat id).',
+                'message' => 'El panel no tiene el bot de Telegram configurado (Configuración).',
+            ], 422);
+        }
+
+        // chat_id del cliente; si no tiene, se usa el chat_id global por defecto.
+        $chatId = $company->telegram_chat_id ?: Setting::get('telegram_chat_id');
+
+        if (! $chatId) {
+            $this->log($company, $button, 'failed', 'Sin chat_id (ni del cliente ni global).');
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No hay chat_id: configúralo en el cliente o uno global en Configuración.',
             ], 422);
         }
 
         try {
             $resp = Http::timeout(10)->asForm()->post(
-                "https://api.telegram.org/bot{$company->telegram_bot_token}/sendMessage",
-                ['chat_id' => $company->telegram_chat_id, 'text' => $button->text]
+                "https://api.telegram.org/bot{$botToken}/sendMessage",
+                ['chat_id' => $chatId, 'text' => $button->text]
             );
         } catch (\Throwable $e) {
             $this->log($company, $button, 'failed', 'No se pudo conectar con Telegram.');
