@@ -77,12 +77,69 @@
                     }
                 }
             }
+        },
+        "/companies/{company}/send": {
+            "post": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Envía el texto de un botón al Telegram del cliente (notificación)",
+                "description": "Envía, como notificación, el texto del botón al chat de Telegram del cliente, usando el bot del propio cliente. No controla ninguna pantalla.",
+                "operationId": "b36a5c01c9180598eb80c65d400593b6",
+                "parameters": [
+                    {
+                        "name": "company",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "button_id"
+                                ],
+                                "properties": {
+                                    "button_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Mensaje enviado"
+                    },
+                    "403": {
+                        "description": "El cliente no está asignado a este operador"
+                    },
+                    "422": {
+                        "description": "Cliente sin Telegram configurado o datos inválidos"
+                    },
+                    "502": {
+                        "description": "Telegram rechazó o no respondió el envío"
+                    }
+                }
+            }
         }
     },
     "tags": [
         {
             "name": "Clientes",
             "description": "Clientes"
+        },
+        {
+            "name": "Mensajería",
+            "description": "Mensajería"
         }
     ]
 }

@@ -30,6 +30,8 @@ Route::middleware('auth')->group(function () {
 
     // Solo administrador
     Route::middleware('admin')->group(function () {
+        Route::put('companies/{company}/assign', [CompanyController::class, 'assign'])->name('companies.assign');
+
         Route::get('operadores', [OperatorController::class, 'index'])->name('operators.index');
         Route::get('operadores/nuevo', [OperatorController::class, 'create'])->name('operators.create');
         Route::post('operadores', [OperatorController::class, 'store'])->name('operators.store');

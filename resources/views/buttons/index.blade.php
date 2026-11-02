@@ -52,8 +52,8 @@
                         <button class="text-sky-400 hover:text-sky-300 text-sm">Guardar</button>
                     </div>
                 </form>
-                <form action="{{ route('buttons.destroy', $button) }}" method="POST" class="text-right mt-1"
-                      onsubmit="return confirm('¿Eliminar este botón?')">
+                <form action="{{ route('buttons.destroy', $button) }}" method="POST" class="text-right mt-1 js-confirm"
+                      data-confirm="Se eliminará el botón {{ $button->label }}.">
                     @csrf @method('DELETE')
                     <button class="text-red-400 hover:text-red-300 text-xs">Eliminar</button>
                 </form>

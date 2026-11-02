@@ -6,6 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Panel Admin')</title>
     <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}">
+    <script src="{{ asset('vendor/sweetalert2/sweetalert2.min.js') }}"></script>
     <style>
         body {
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -77,5 +79,29 @@
 
         @yield('content')
     </main>
+
+    <script>
+        // Confirmación con SweetAlert para cualquier formulario con la clase "js-confirm".
+        document.addEventListener('submit', function (e) {
+            var form = e.target.closest('form.js-confirm');
+            if (!form || form.dataset.confirmed === '1') return;
+
+            e.preventDefault();
+            Swal.fire({
+                title: form.dataset.confirmTitle || '¿Estás seguro?',
+                text: form.dataset.confirm || 'Esta acción no se puede deshacer.',
+                icon: form.dataset.confirmIcon || 'warning',
+                showCancelButton: true,
+                confirmButtonText: form.dataset.confirmBtn || 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: form.dataset.confirmColor || '#dc2626',
+            }).then(function (r) {
+                if (r.isConfirmed) {
+                    form.dataset.confirmed = '1';
+                    form.submit();
+                }
+            });
+        }, true);
+    </script>
 </body>
 </html>

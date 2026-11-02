@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Button;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,9 +20,32 @@ class CompanyController extends Controller
             ->get();
 
         // Catálogo global de botones, igual para todos los clientes.
-        $buttons = \App\Models\Button::activeOrdered()->get();
+        $buttons = Button::activeOrdered()->get();
 
-        return view('companies.index', compact('companies', 'buttons'));
+        // Operadores disponibles para asignar (solo lo usa el admin).
+        $operators = auth()->user()->role === 'admin'
+            ? User::where('role', 'operador')->orderBy('name')->get()
+            : collect();
+
+        return view('companies.index', compact('companies', 'buttons', 'operators'));
+    }
+
+    /** Asigna (o quita) el operador de un cliente. Solo admin. */
+    public function assign(Request $request, Company $company)
+    {
+        $data = $request->validate([
+            'operator_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        // Solo se permite asignar a un operador, o al propio admin, o dejar sin asignar.
+        if (! empty($data['operator_id'])) {
+            $target = User::find($data['operator_id']);
+            abort_unless($target && ($target->role === 'operador' || $target->id === auth()->id()), 422, 'Operador inválido.');
+        }
+
+        $company->update(['operator_id' => $data['operator_id'] ?: null]);
+
+        return back()->with('status', 'Operador asignado.');
     }
 
     public function create()

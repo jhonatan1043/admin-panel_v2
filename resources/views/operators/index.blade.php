@@ -45,8 +45,9 @@
                             <td class="px-4 py-2 text-right whitespace-nowrap">
                                 <a href="{{ route('operators.edit', $operator) }}"
                                    class="text-sky-400 hover:text-sky-300">Editar</a>
-                                <form action="{{ route('operators.destroy', $operator) }}" method="POST" class="inline ml-3"
-                                      onsubmit="return confirm('¿Eliminar este operador? Sus clientes quedarán sin asignar.')">
+                                <form action="{{ route('operators.destroy', $operator) }}" method="POST"
+                                      class="inline ml-3 js-confirm"
+                                      data-confirm="Se eliminará el operador {{ $operator->name }}. Sus clientes quedarán sin asignar.">
                                     @csrf @method('DELETE')
                                     <button class="text-red-400 hover:text-red-300">Eliminar</button>
                                 </form>

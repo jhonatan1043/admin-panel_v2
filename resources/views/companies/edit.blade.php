@@ -41,7 +41,7 @@
                 </div>
             </form>
             <form action="{{ route('companies.templates.destroy', [$company, $template]) }}" method="POST"
-                  class="-mt-2 mb-4 text-right" onsubmit="return confirm('¿Eliminar este botón?')">
+                  class="-mt-2 mb-4 text-right js-confirm" data-confirm="Se eliminará este botón.">
                 @csrf @method('DELETE')
                 <button class="text-red-400 hover:text-red-300 text-xs">Eliminar botón</button>
             </form>
