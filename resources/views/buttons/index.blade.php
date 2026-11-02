@@ -23,6 +23,8 @@
                    class="w-48 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
             <textarea name="text" rows="1" placeholder="Texto que se envía al cliente" required
                       class="flex-1 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm"></textarea>
+            <input type="text" name="url" placeholder="URL (interna)" title="URL interna; la API GET la devuelve"
+                   class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
         </div>
         <div class="flex items-center justify-between mt-2">
             <label class="text-xs text-slate-300 flex items-center gap-1">
@@ -47,6 +49,9 @@
                                class="w-48 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
                         <textarea name="text" rows="1"
                                   class="flex-1 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">{{ $button->text }}</textarea>
+                        <input type="text" name="url" value="{{ $button->url }}" placeholder="URL (interna)"
+                               title="URL interna; la API GET la devuelve"
+                               class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
                     </div>
                     <div class="flex items-center justify-between mt-2">
                         <label class="text-xs text-slate-300 flex items-center gap-1">

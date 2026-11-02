@@ -9,6 +9,7 @@ class Button extends Model
     protected $fillable = [
         'label',
         'text',
+        'url',
         'sort_order',
         'is_active',
     ];

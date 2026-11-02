@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ButtonController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\MessagingController;
 use App\Http\Controllers\Api\TelegramWebhookController;
@@ -9,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 // POST /api/clients  -> registra un cliente nuevo o refresca su actividad (lo pone en verde)
 Route::get('clients', [ClientController::class, 'index']);
 Route::post('clients', [ClientController::class, 'store']);
+
+// GET /api/buttons -> catálogo de botones creados (id, nombre y mensaje)
+Route::get('buttons', [ButtonController::class, 'index']);
 
 // Mensajería: desde el panel (sesión iniciada). Envía el texto del botón al Telegram del cliente.
 Route::middleware(['web', 'auth'])

@@ -12,6 +12,55 @@
         }
     ],
     "paths": {
+        "/buttons": {
+            "get": {
+                "tags": [
+                    "Botones"
+                ],
+                "summary": "Lista los botones creados (id, nombre y mensaje)",
+                "operationId": "8b9471c5be02ab08208ec1aa8cd2800c",
+                "responses": {
+                    "200": {
+                        "description": "Listado de botones",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "nombre": {
+                                                        "type": "string",
+                                                        "example": "Licencia"
+                                                    },
+                                                    "mensaje": {
+                                                        "type": "string",
+                                                        "example": "Tu licencia está activa."
+                                                    },
+                                                    "url": {
+                                                        "description": "URL interna del botón.",
+                                                        "type": "string",
+                                                        "example": "https://interno/accion",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/clients": {
             "get": {
                 "tags": [
@@ -196,6 +245,10 @@
         }
     },
     "tags": [
+        {
+            "name": "Botones",
+            "description": "Botones"
+        },
         {
             "name": "Clientes",
             "description": "Clientes"
