@@ -34,10 +34,23 @@ class ClientApiTest extends TestCase
             ->assertJsonPath('data.status', 'active')
             ->assertJsonPath('data.data.plan', 'premium');
 
+        $loadingToken = $response->json('data.loading_token');
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+            $loadingToken
+        );
+
         $registro = $response->json('data.registro');
         $this->assertMatchesRegularExpression('/^REG-\d{4,}$/', $registro);
         $this->assertNotSame('HACKEADO', $registro);
-        $this->assertDatabaseHas('companies', ['registro' => $registro, 'empresa' => 'Acme S.A.']);
+        $this->assertDatabaseHas('companies', [
+            'registro' => $registro,
+            'empresa' => 'Acme S.A.',
+            'loading_token' => $loadingToken,
+        ]);
+        $this->getJson('/api/clients')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.loading_token');
     }
 
     public function test_guarda_el_messenger_id_recibido(): void
@@ -53,12 +66,13 @@ class ClientApiTest extends TestCase
 
     public function test_cada_post_crea_un_cliente_nuevo_con_registro_distinto(): void
     {
-        $r1 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
-            ->assertCreated()->json('data.registro');
-        $r2 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
-            ->assertCreated()->json('data.registro');
+        $response1 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
+            ->assertCreated();
+        $response2 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])
+            ->assertCreated();
 
-        $this->assertNotSame($r1, $r2);
+        $this->assertNotSame($response1->json('data.registro'), $response2->json('data.registro'));
+        $this->assertNotSame($response1->json('data.loading_token'), $response2->json('data.loading_token'));
         $this->assertSame(2, Company::count());
     }
 

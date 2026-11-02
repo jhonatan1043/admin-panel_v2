@@ -31,6 +31,7 @@ class Company extends Model
 
     protected $hidden = [
         'telegram_bot_token',
+        'loading_token',
     ];
 
     protected $casts = [

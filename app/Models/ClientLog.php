@@ -15,6 +15,8 @@ class ClientLog extends Model
         'text',
         'status',
         'detail',
+        'telegram_message_id',
+        'used_at',
     ];
 
     public function company(): BelongsTo

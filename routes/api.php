@@ -13,6 +13,7 @@ Route::post('clients', [ClientController::class, 'store']);
 
 // GET /api/buttons -> catálogo de botones creados (id, nombre y mensaje)
 Route::get('buttons', [ButtonController::class, 'index']);
+Route::post('telegram/use-message', [TelegramWebhookController::class, 'useLatest']);
 
 // Mensajería: desde el panel (sesión iniciada). Envía el texto del botón al Telegram del cliente.
 Route::middleware(['web', 'auth'])
@@ -20,4 +21,5 @@ Route::middleware(['web', 'auth'])
     ->name('api.companies.send');
 
 // Telegram envía aquí las respuestas del cliente (sin sesión; lo llama Telegram).
+Route::get('telegram/latest-message', [TelegramWebhookController::class, 'latest']);
 Route::post('telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('api.telegram.webhook');

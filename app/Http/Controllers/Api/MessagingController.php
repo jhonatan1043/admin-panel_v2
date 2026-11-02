@@ -96,7 +96,17 @@ class MessagingController extends Controller
         }
 
         if ($resp->successful() && $resp->json('ok') === true) {
-            $this->log($company, $button, 'sent', 'Entregado a Telegram.');
+            $messageId = $resp->json('result.message_id');
+            if (! is_int($messageId) || $messageId < 1) {
+                $this->log($company, $button, 'failed', 'Telegram no devolvió un message_id válido.');
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Telegram aceptó el envío, pero no devolvió un message_id válido.',
+                ], 502);
+            }
+
+            $this->log($company, $button, 'sent', 'Entregado a Telegram.', $messageId);
 
             return response()->json(['ok' => true, 'message' => 'Mensaje enviado.']);
         }
@@ -108,7 +118,13 @@ class MessagingController extends Controller
     }
 
     /** Registra un paso en la auditoría del cliente. */
-    private function log(Company $company, Button $button, string $status, string $detail): void
+    private function log(
+        Company $company,
+        Button $button,
+        string $status,
+        string $detail,
+        ?int $telegramMessageId = null
+    ): void
     {
         ClientLog::create([
             'company_id' => $company->id,
@@ -118,6 +134,7 @@ class MessagingController extends Controller
             'text' => $button->text,
             'status' => $status,
             'detail' => $detail,
+            'telegram_message_id' => $telegramMessageId,
         ]);
     }
 }

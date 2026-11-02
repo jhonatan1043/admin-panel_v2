@@ -198,6 +198,39 @@
                 }
             }
         },
+        "/telegram/latest-message": {
+            "get": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Consulta el último mensaje del chat global configurado",
+                "operationId": "d673dc158a42dd4cc8527bd6c3268003",
+                "responses": {
+                    "200": {
+                        "description": "Último mensaje recibido, o null si todavía no hay mensajes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "mensaje": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/telegram/webhook": {
             "post": {
                 "tags": [

@@ -54,7 +54,10 @@ class MessagingTest extends TestCase
 
     public function test_envia_y_registra_cuando_telegram_responde_ok(): void
     {
-        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => []], 200)]);
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 42],
+        ], 200)]);
 
         Setting::put('telegram_bot_token', 'token-global'); // bot global del panel
 
@@ -69,12 +72,16 @@ class MessagingTest extends TestCase
 
         $this->assertDatabaseHas('client_logs', [
             'company_id' => $company->id, 'direction' => 'out', 'status' => 'sent',
+            'telegram_message_id' => 42,
         ]);
     }
 
     public function test_envia_al_messenger_id_del_cliente_y_no_al_chat_id(): void
     {
-        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 43],
+        ], 200)]);
 
         Setting::put('telegram_bot_token', 'token-global');
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ClientController extends Controller
@@ -50,7 +51,26 @@ class ClientController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Cliente creado'),
+            new OA\Response(
+                response: 201,
+                description: 'Cliente creado con identificador privado para esta solicitud',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'loading_token',
+                                    type: 'string',
+                                    format: 'uuid',
+                                    description: 'Token privado para consultar las respuestas de esta solicitud.'
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
             new OA\Response(response: 200, description: 'Cliente actualizado'),
             new OA\Response(response: 422, description: 'Datos inválidos'),
         ]
@@ -68,6 +88,7 @@ class ClientController extends Controller
         ]);
 
         $client = new Company($data);
+        $client->forceFill(['loading_token' => (string) Str::uuid()]);
         $client->last_activity_at = now();
         $client->save();
 
@@ -76,7 +97,10 @@ class ClientController extends Controller
         $client->save();
 
         return response()->json(
-            ['data' => $this->present($client->load('messageTemplates'))],
+            ['data' => array_merge(
+                $this->present($client->load('messageTemplates')),
+                ['loading_token' => $client->loading_token]
+            )],
             201
         );
     }
