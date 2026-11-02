@@ -1,0 +1,88 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Panel Admin API",
+        "description": "API del panel de call center: clientes (registros), estado por tiempo y botones.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api",
+            "description": "Servidor local"
+        }
+    ],
+    "paths": {
+        "/clients": {
+            "get": {
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Lista de clientes con su estado (verde/amarillo/gris/rojo)",
+                "operationId": "6536f8d22d25758c3e14dbbe8e228af0",
+                "responses": {
+                    "200": {
+                        "description": "Listado de clientes"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Registra un cliente nuevo o refresca su actividad",
+                "operationId": "74a35b85418e09c2489915865dd22445",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "registro"
+                                ],
+                                "properties": {
+                                    "registro": {
+                                        "type": "string",
+                                        "example": "REG-0001"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Juan Pérez"
+                                    },
+                                    "telegram_chat_id": {
+                                        "type": "string",
+                                        "example": "123456789"
+                                    },
+                                    "data": {
+                                        "type": "object",
+                                        "example": {
+                                            "plan": "premium",
+                                            "origen": "web"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Cliente creado"
+                    },
+                    "200": {
+                        "description": "Cliente actualizado"
+                    },
+                    "422": {
+                        "description": "Datos inválidos"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Clientes",
+            "description": "Clientes"
+        }
+    ]
+}
