@@ -32,10 +32,42 @@
             </p>
         </div>
 
-        <div>
+        <div class="flex items-center gap-3">
             <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-2 rounded">
                 Guardar
             </button>
+            <button type="button" id="btn-probar"
+                    class="border border-sky-500/50 text-sky-300 hover:bg-sky-500/10 text-sm px-4 py-2 rounded">
+                Probar conexión
+            </button>
         </div>
     </form>
+
+    <script>
+        document.getElementById('btn-probar').addEventListener('click', function () {
+            var token = (document.querySelector('[name=telegram_bot_token]').value || '').trim();
+            var chat = (document.querySelector('[name=telegram_chat_id]').value || '').trim();
+
+            Swal.fire({ title: 'Probando conexión…', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+
+            fetch(@json(route('settings.test')), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                },
+                body: JSON.stringify({ telegram_bot_token: token, telegram_chat_id: chat }),
+            }).then(async function (res) {
+                var data = await res.json().catch(function () { return {}; });
+                Swal.fire({
+                    icon: (res.ok && data.ok) ? 'success' : 'error',
+                    title: (res.ok && data.ok) ? 'Conexión OK' : 'Falló la prueba',
+                    text: data.message || ('Error ' + res.status),
+                });
+            }).catch(function () {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo contactar al servidor.' });
+            });
+        });
+    </script>
 @endsection

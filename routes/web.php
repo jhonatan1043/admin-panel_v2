@@ -56,5 +56,6 @@ Route::middleware('auth')->group(function () {
         // Configuración global (incluye el bot de Telegram del panel).
         Route::get('configuracion', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('configuracion', [SettingsController::class, 'update'])->name('settings.update');
+        Route::post('configuracion/probar', [SettingsController::class, 'test'])->name('settings.test');
     });
 });
