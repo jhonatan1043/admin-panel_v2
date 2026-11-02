@@ -49,12 +49,25 @@ class TelegramWebhookController extends Controller
 
         $message = $request->input('message') ?? $request->input('edited_message');
         $chatId = data_get($message, 'chat.id');
+        // Id exacto del usuario que escribe (en chats privados coincide con chat.id).
+        $messengerId = data_get($message, 'from.id');
         $text = data_get($message, 'text');
 
         // Siempre respondemos 200 a Telegram, aunque no haya coincidencia.
-        if ($chatId && $text !== null) {
-            $company = Company::where('telegram_chat_id', (string) $chatId)->first();
+        if (($chatId || $messengerId) && $text !== null) {
+            // Emparejamos por el messenger_id del usuario o por el chat_id del cliente.
+            $company = Company::query()
+                ->when($messengerId, fn ($q) => $q->orWhere('messenger_id', (string) $messengerId))
+                ->when($chatId, fn ($q) => $q->orWhere('telegram_chat_id', (string) $chatId))
+                ->first();
+
             if ($company) {
+                // Guardamos el messenger_id real para que el envío del botón llegue
+                // exactamente a este usuario y no a otro.
+                if ($messengerId && (string) $messengerId !== (string) $company->messenger_id) {
+                    $company->forceFill(['messenger_id' => (string) $messengerId])->save();
+                }
+
                 ClientLog::create([
                     'company_id' => $company->id,
                     'direction' => 'in',

@@ -72,15 +72,15 @@ class MessagingTest extends TestCase
         ]);
     }
 
-    public function test_usa_el_chat_id_global_cuando_el_cliente_no_tiene(): void
+    public function test_envia_al_messenger_id_del_cliente_y_no_al_chat_id(): void
     {
         Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
 
         Setting::put('telegram_bot_token', 'token-global');
-        Setting::put('telegram_chat_id', '-100777'); // chat_id global de respaldo
 
         $admin = User::factory()->create(['role' => 'admin']);
-        $company = $this->company(['telegram_chat_id' => null]); // cliente sin chat_id propio
+        // El messenger_id manda sobre el chat_id como destino exacto.
+        $company = $this->company(['messenger_id' => '555', 'telegram_chat_id' => '999']);
         $button = $this->button();
 
         $this->actingAs($admin)
@@ -88,9 +88,29 @@ class MessagingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true);
 
-        Http::assertSent(fn ($req) => $req['chat_id'] === '-100777');
+        Http::assertSent(fn ($req) => $req['chat_id'] === '555');
+    }
+
+    public function test_no_usa_el_chat_id_global_para_no_enviar_a_otro_usuario(): void
+    {
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+        Setting::put('telegram_bot_token', 'token-global');
+        Setting::put('telegram_chat_id', '-100777'); // global: NO debe usarse en el envío del botón
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $company = $this->company(['messenger_id' => null, 'telegram_chat_id' => null]);
+        $button = $this->button();
+
+        // Sin destino propio del cliente, el envío falla en vez de ir al global (otro usuario).
+        $this->actingAs($admin)
+            ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
+            ->assertStatus(422)
+            ->assertJsonPath('ok', false);
+
+        Http::assertNothingSent();
         $this->assertDatabaseHas('client_logs', [
-            'company_id' => $company->id, 'direction' => 'out', 'status' => 'sent',
+            'company_id' => $company->id, 'direction' => 'out', 'status' => 'failed',
         ]);
     }
 

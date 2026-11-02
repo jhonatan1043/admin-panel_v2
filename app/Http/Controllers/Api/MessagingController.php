@@ -67,15 +67,17 @@ class MessagingController extends Controller
             ], 422);
         }
 
-        // chat_id del cliente; si no tiene, se usa el chat_id global por defecto.
-        $chatId = $company->telegram_chat_id ?: Setting::get('telegram_chat_id');
+        // Destino EXACTO de este cliente: su messenger_id (el id del usuario de
+        // Telegram). Como respaldo, su propio telegram_chat_id. Nunca se usa un
+        // chat_id global: enviaría el botón a otro usuario distinto.
+        $chatId = $company->messenger_id ?: $company->telegram_chat_id;
 
         if (! $chatId) {
-            $this->log($company, $button, 'failed', 'Sin chat_id (ni del cliente ni global).');
+            $this->log($company, $button, 'failed', 'Cliente sin messenger_id ni chat_id propio.');
 
             return response()->json([
                 'ok' => false,
-                'message' => 'No hay chat_id: configúralo en el cliente o uno global en Configuración.',
+                'message' => 'Este cliente no tiene messenger_id (ni chat_id) propio; no se envía para no llegar a otro usuario.',
             ], 422);
         }
 

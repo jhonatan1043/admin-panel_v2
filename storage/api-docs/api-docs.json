@@ -58,6 +58,11 @@
                                         "type": "string",
                                         "example": "123456789"
                                     },
+                                    "messenger_id": {
+                                        "description": "Id del usuario de Telegram; destino exacto del botón.",
+                                        "type": "string",
+                                        "example": "123456789"
+                                    },
                                     "data": {
                                         "description": "Cualquier otro dato libre",
                                         "type": "object",

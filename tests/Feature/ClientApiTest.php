@@ -40,6 +40,17 @@ class ClientApiTest extends TestCase
         $this->assertDatabaseHas('companies', ['registro' => $registro, 'empresa' => 'Acme S.A.']);
     }
 
+    public function test_guarda_el_messenger_id_recibido(): void
+    {
+        $this->postJson('/api/clients', [
+            'empresa' => 'Acme', 'fecha' => '2026-11-02 09:30', 'messenger_id' => '123456789',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.messenger_id', '123456789');
+
+        $this->assertDatabaseHas('companies', ['messenger_id' => '123456789']);
+    }
+
     public function test_cada_post_crea_un_cliente_nuevo_con_registro_distinto(): void
     {
         $r1 = $this->postJson('/api/clients', ['empresa' => 'Acme', 'fecha' => '2026-11-02 09:30'])

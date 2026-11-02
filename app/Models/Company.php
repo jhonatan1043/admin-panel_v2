@@ -22,6 +22,7 @@ class Company extends Model
         'fecha',
         'telegram_bot_token',
         'telegram_chat_id',
+        'messenger_id',
         'loading_image_path',
         'status',
         'last_activity_at',

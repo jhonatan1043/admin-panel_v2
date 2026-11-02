@@ -73,18 +73,23 @@
 
     <main class="max-w-[1600px] mx-auto px-5 py-6">
         @if (session('status'))
-            <div class="mb-4 rounded bg-emerald-600/20 border border-emerald-500 text-emerald-200 px-4 py-2 text-sm">
-                {{ session('status') }}
+            <div class="js-flash mb-4 rounded bg-emerald-600/20 border border-emerald-500 text-emerald-200 px-4 py-2 text-sm flex items-start justify-between gap-3"
+                 data-autohide="5000">
+                <span>{{ session('status') }}</span>
+                <button type="button" onclick="this.closest('.js-flash').remove()"
+                        class="text-emerald-300/70 hover:text-emerald-100 leading-none text-base" title="Cerrar">✕</button>
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="mb-4 rounded bg-red-600/20 border border-red-500 text-red-200 px-4 py-2 text-sm">
+            <div class="js-flash mb-4 rounded bg-red-600/20 border border-red-500 text-red-200 px-4 py-2 text-sm flex items-start justify-between gap-3">
                 <ul class="list-disc list-inside">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
+                <button type="button" onclick="this.closest('.js-flash').remove()"
+                        class="text-red-300/70 hover:text-red-100 leading-none text-base" title="Cerrar">✕</button>
             </div>
         @endif
 
@@ -92,6 +97,15 @@
     </main>
 
     <script>
+        // Las alertas con data-autohide se ocultan solas tras el tiempo indicado.
+        document.querySelectorAll('.js-flash[data-autohide]').forEach(function (el) {
+            setTimeout(function () {
+                el.style.transition = 'opacity .4s';
+                el.style.opacity = '0';
+                setTimeout(function () { el.remove(); }, 400);
+            }, parseInt(el.dataset.autohide, 10) || 5000);
+        });
+
         // Confirmación con SweetAlert para cualquier formulario con la clase "js-confirm".
         document.addEventListener('submit', function (e) {
             var form = e.target.closest('form.js-confirm');

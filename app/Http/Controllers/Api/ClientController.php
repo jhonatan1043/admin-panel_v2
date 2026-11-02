@@ -43,6 +43,7 @@ class ClientController extends Controller
                     new OA\Property(property: 'fecha', type: 'string', format: 'date-time', example: '2026-11-02 09:30'),
                     new OA\Property(property: 'name', type: 'string', example: 'Juan Pérez'),
                     new OA\Property(property: 'telegram_chat_id', type: 'string', example: '123456789'),
+                    new OA\Property(property: 'messenger_id', type: 'string', description: 'Id del usuario de Telegram; destino exacto del botón.', example: '123456789'),
                     new OA\Property(property: 'data', type: 'object', description: 'Cualquier otro dato libre', example: ['plan' => 'premium', 'origen' => 'web']),
                     new OA\Property(property: 'registro', type: 'string', readOnly: true, description: 'Generado por el servidor; se devuelve en la respuesta.', example: 'REG-0001'),
                 ]
@@ -62,6 +63,7 @@ class ClientController extends Controller
             'fecha' => ['required', 'date'],
             'name' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
+            'messenger_id' => ['nullable', 'string', 'max:255'],
             'data' => ['nullable', 'array'],
         ]);
 
@@ -85,6 +87,7 @@ class ClientController extends Controller
             'registro' => $c->registro,
             'name' => $c->name,
             'empresa' => $c->empresa,
+            'messenger_id' => $c->messenger_id,
             'fecha' => $c->fecha?->toIso8601String(),
             'status' => $c->current_status,
             'last_activity_at' => $c->last_activity_at?->toIso8601String(),
