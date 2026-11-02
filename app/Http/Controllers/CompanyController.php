@@ -35,6 +35,49 @@ class CompanyController extends Controller
         return view('companies._detail', compact('company'));
     }
 
+    /** Exporta toda la conversación del cliente como archivo .txt. */
+    public function exportDetail(Company $company)
+    {
+        abort_unless(
+            auth()->user()->role === 'admin' || $company->operator_id === auth()->id(),
+            403
+        );
+
+        $logs = $company->logs()->get()->sortBy('created_at')->values();
+
+        $lines = [
+            'Conversación · ' . ($company->name ?: $company->registro) . ' (' . $company->registro . ')',
+            'Empresa: ' . ($company->empresa ?: '-'),
+            'Exportado: ' . now()->format('d/m/Y H:i'),
+            str_repeat('-', 48),
+        ];
+
+        foreach ($logs as $log) {
+            $hora = $log->created_at->format('d/m/Y H:i');
+            if ($log->direction === 'in') {
+                $lines[] = "[{$hora}] Cliente: {$log->text}";
+            } else {
+                $estado = $log->status === 'sent' ? 'OK' : 'FALLÓ';
+                $lines[] = "[{$hora}] Panel ({$log->label}) [{$estado}]: {$log->text}";
+                if ($log->detail && $log->status !== 'sent') {
+                    $lines[] = "          · {$log->detail}";
+                }
+            }
+        }
+
+        if ($logs->isEmpty()) {
+            $lines[] = '(Sin mensajes)';
+        }
+
+        $content = implode("\n", $lines) . "\n";
+        $filename = 'conversacion-' . $company->registro . '.txt';
+
+        return response($content, 200, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
     /** Datos compartidos por el tablero completo y su refresco en vivo. */
     private function boardData(): array
     {

@@ -24,6 +24,8 @@ Route::middleware('auth')->group(function () {
     Route::get('companies/board', [CompanyController::class, 'board'])->name('companies.board');
     // Conversación en vivo de la tarjeta abierta.
     Route::get('companies/{company}/detail', [CompanyController::class, 'detail'])->name('companies.detail');
+    // Exportar la conversación del cliente a TXT.
+    Route::get('companies/{company}/detail/export', [CompanyController::class, 'exportDetail'])->name('companies.detail.export');
 
     Route::resource('companies', CompanyController::class)->except('show');
 

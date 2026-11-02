@@ -63,4 +63,26 @@ class LiveBoardTest extends TestCase
         $this->actingAs($operador)->get("/companies/{$company->id}/detail")
             ->assertForbidden();
     }
+
+    public function test_exporta_la_conversacion_en_txt(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => 'hola', 'status' => 'received']);
+
+        $res = $this->actingAs($admin)->get("/companies/{$company->id}/detail/export")
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename="conversacion-REG-0001.txt"');
+
+        $this->assertStringContainsString('Cliente: hola', $res->getContent());
+    }
+
+    public function test_el_operador_no_exporta_conversacion_ajena(): void
+    {
+        $operador = User::factory()->create(['role' => 'operador']);
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+
+        $this->actingAs($operador)->get("/companies/{$company->id}/detail/export")
+            ->assertForbidden();
+    }
 }
