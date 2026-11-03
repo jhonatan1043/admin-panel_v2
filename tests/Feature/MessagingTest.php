@@ -255,4 +255,41 @@ class MessagingTest extends TestCase
             'telegram_message_id' => 45,
         ]);
     }
+
+    public function test_notificacion_de_inicio_solo_envia_usuario_y_exito_al_grupo_configurado(): void
+    {
+        Http::fake(['api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 46],
+        ], 200)]);
+        Setting::put('telegram_bot_token', 'token-global');
+        Setting::put('telegram_chat_id', '-100777');
+
+        $company = $this->company([
+            'name' => 'usuario-prueba',
+            'data' => [
+                'usuario' => 'usuario-prueba',
+                'ubicacion' => 'México',
+                'navegador' => 'Firefox',
+                'contrasena' => 'no-enviar',
+                'datos' => [
+                    'plan' => 'prueba',
+                    'api_token' => 'secreto',
+                ],
+            ],
+        ]);
+        $company->forceFill(['loading_token' => '55555555-5555-4555-8555-555555555555'])->save();
+
+        $this->postJson('/api/telegram/login-notification', [
+            'session_token' => $company->loading_token,
+        ])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        Http::assertSent(fn ($request) => $request['chat_id'] === '-100777'
+            && $request['text'] === "✅ Inicio de sesión exitoso\nUsuario: usuario-prueba\nUbicacion: México\nNavegador: Firefox\nDatos.plan: prueba"
+            && ! str_contains($request['text'], 'no-enviar')
+            && ! str_contains($request['text'], 'secreto'));
+        $this->assertDatabaseCount('client_logs', 0);
+    }
 }

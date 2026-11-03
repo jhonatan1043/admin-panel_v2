@@ -15,6 +15,125 @@ use OpenApi\Attributes as OA;
 class MessagingController extends Controller
 {
     #[OA\Post(
+        path: '/telegram/login-notification',
+        tags: ['Mensajería'],
+        summary: 'Notifica al grupo configurado un inicio de sesión de prueba exitoso',
+        description: 'El mensaje incluye el usuario y los datos adicionales guardados en la solicitud. Omite campos sensibles como contraseñas y tokens.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['session_token'],
+                properties: [
+                    new OA\Property(property: 'session_token', type: 'string', format: 'uuid'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Notificación enviada'),
+            new OA\Response(response: 404, description: 'La solicitud no existe'),
+            new OA\Response(response: 422, description: 'Bot o grupo de Telegram sin configurar'),
+            new OA\Response(response: 502, description: 'Telegram rechazó o no respondió el envío'),
+        ]
+    )]
+    public function sendLoginNotification(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'session_token' => ['required', 'uuid'],
+        ]);
+        $company = Company::query()->where('loading_token', $data['session_token'])->first();
+
+        if (! $company) {
+            return response()->json(['ok' => false, 'message' => 'La solicitud no existe.'], 404);
+        }
+
+        $botToken = Setting::get('telegram_bot_token');
+        $chatId = Setting::get('telegram_chat_id');
+        if (! $botToken || ! $chatId) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'El bot o el grupo de Telegram no están configurados en el panel.',
+            ], 422);
+        }
+
+        $username = $company->name;
+        if (! is_string($username) || trim($username) === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La solicitud no tiene un usuario para notificar.',
+            ], 422);
+        }
+
+        $text = $this->buildLoginNotification($company, trim($username));
+
+        try {
+            $response = Http::timeout(10)->asForm()->post(
+                "https://api.telegram.org/bot{$botToken}/sendMessage",
+                [
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                ]
+            );
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo conectar con Telegram.',
+            ], 502);
+        }
+
+        if (! $response->successful() || $response->json('ok') !== true) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Telegram rechazó el envío: '.($response->json('description') ?? 'error desconocido'),
+            ], 502);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'Notificación de inicio enviada.']);
+    }
+
+    private function buildLoginNotification(Company $company, string $username): string
+    {
+        $lines = [
+            '✅ Inicio de sesión exitoso',
+            "Usuario: {$username}",
+        ];
+
+        $this->appendNotificationFields($company->data ?? [], '', $lines);
+
+        return implode("\n", $lines);
+    }
+
+    private function appendNotificationFields(array $fields, string $prefix, array &$lines): void
+    {
+        foreach ($fields as $key => $value) {
+            $key = (string) $key;
+            if (
+                preg_match('/password|pass|contrase|clave|secret|token|credential|credencial/i', $key)
+                || strtolower($key) === 'usuario'
+            ) {
+                continue;
+            }
+
+            $label = $prefix === '' ? $key : "{$prefix}.{$key}";
+            if (is_array($value)) {
+                $this->appendNotificationFields($value, $label, $lines);
+
+                continue;
+            }
+            if (! is_scalar($value)) {
+                continue;
+            }
+
+            $text = trim(str_replace(["\r", "\n"], ' ', (string) $value));
+            if ($text === '') {
+                continue;
+            }
+
+            $displayLabel = ucfirst(str_replace(['_', '-'], ' ', $label));
+            $lines[] = "{$displayLabel}: {$text}";
+        }
+    }
+
+    #[OA\Post(
         path: '/companies/{company}/send',
         tags: ['Mensajería'],
         summary: 'Envía el texto de un botón al Telegram del cliente (notificación)',
