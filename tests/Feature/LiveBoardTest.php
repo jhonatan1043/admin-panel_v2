@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Button;
 use App\Models\ClientLog;
 use App\Models\Company;
 use App\Models\User;
@@ -84,5 +85,36 @@ class LiveBoardTest extends TestCase
 
         $this->actingAs($operador)->get("/companies/{$company->id}/detail/export")
             ->assertForbidden();
+    }
+
+    public function test_el_tablero_marca_el_vencimiento_cuando_llega_el_valor(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'OTP', 'text' => 'Código', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        // Se envió la opción con vencimiento y luego llegó el valor del cliente.
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'OTP', 'text' => 'Código', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => '123456', 'status' => 'received']);
+
+        // El tablero expone data-alarm-at para que el front dispare la alarma.
+        $this->actingAs($admin)->get('/companies/board')
+            ->assertOk()
+            ->assertSee('data-alarm-at', false);
+    }
+
+    public function test_el_tablero_no_marca_vencimiento_sin_valor_recibido(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'OTP', 'text' => 'Código', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        // Solo se envió la opción; el cliente aún no responde: no hay vencimiento activo.
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'OTP', 'text' => 'Código', 'status' => 'sent']);
+
+        $this->actingAs($admin)->get('/companies/board')
+            ->assertOk()
+            ->assertDontSee('data-alarm-at', false);
     }
 }

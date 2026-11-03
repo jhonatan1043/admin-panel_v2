@@ -30,4 +30,26 @@ class ButtonTest extends TestCase
 
         $this->assertDatabaseHas('buttons', ['label' => 'Nuevo', 'is_active' => true]);
     }
+
+    public function test_guarda_el_vencimiento_en_segundos_del_boton(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)
+            ->post('/botones', ['label' => 'OTP', 'text' => 'Código', 'expires_seconds' => 50, 'is_active' => '1'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('buttons', ['label' => 'OTP', 'expires_seconds' => 50]);
+    }
+
+    public function test_sin_vencimiento_queda_nulo(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)
+            ->post('/botones', ['label' => 'Info', 'text' => 'Dato', 'is_active' => '1'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('buttons', ['label' => 'Info', 'expires_seconds' => null]);
+    }
 }

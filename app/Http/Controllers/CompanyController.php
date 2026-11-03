@@ -31,6 +31,7 @@ class CompanyController extends Controller
         );
 
         $company->load(['logs' => fn ($q) => $q->limit(15)]);
+        $company->alarm_at = $this->computeAlarmAt($company, $this->expiryByLabel());
 
         return view('companies._detail', compact('company'));
     }
@@ -96,12 +97,57 @@ class CompanyController extends Controller
             ? User::where('role', 'operador')->orderBy('name')->get()
             : collect();
 
+        // Momento de vencimiento del último valor recibido (para la alarma sonora).
+        $expiryByLabel = $this->expiryByLabel();
+        foreach ($companies as $company) {
+            $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
+        }
+
         // Tablero dividido por empresa; cada grupo mantiene su orden por actividad.
         $companiesByEmpresa = $companies
             ->groupBy(fn (Company $c) => $c->empresa ?: 'Sin empresa')
             ->sortKeys();
 
         return compact('companies', 'buttons', 'operators', 'companiesByEmpresa');
+    }
+
+    /** Mapa etiqueta-de-botón => segundos de vencimiento (solo los que vencen). */
+    private function expiryByLabel()
+    {
+        return Button::whereNotNull('expires_seconds')->pluck('expires_seconds', 'label');
+    }
+
+    /**
+     * Calcula cuándo vence el último valor recibido del cliente.
+     *
+     * El reloj arranca cuando llega el valor (mensaje entrante) posterior a la
+     * última opción con vencimiento que se le envió. Devuelve null si no aplica.
+     */
+    private function computeAlarmAt(Company $company, $expiryByLabel): ?\Illuminate\Support\Carbon
+    {
+        if ($expiryByLabel->isEmpty()) {
+            return null;
+        }
+
+        $logs = $company->logs; // más recientes primero
+
+        // Última opción (saliente) con vencimiento que se envió al cliente.
+        $lastOut = $logs->first(
+            fn ($l) => $l->direction === 'out' && isset($expiryByLabel[$l->label])
+        );
+        if (! $lastOut) {
+            return null;
+        }
+
+        // Valor del cliente (entrante) que llegó después de esa opción.
+        $lastIn = $logs->first(
+            fn ($l) => $l->direction === 'in' && $l->created_at->gt($lastOut->created_at)
+        );
+        if (! $lastIn) {
+            return null;
+        }
+
+        return $lastIn->created_at->copy()->addSeconds((int) $expiryByLabel[$lastOut->label]);
     }
 
     /** Asigna (o quita) el operador de un cliente. Solo admin. */

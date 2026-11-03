@@ -34,4 +34,15 @@ class ButtonApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'data');
     }
+
+    public function test_devuelve_el_vencimiento_en_segundos(): void
+    {
+        Button::create(['label' => 'OTP', 'text' => 'Código', 'expires_seconds' => 50]);
+        Button::create(['label' => 'Info', 'text' => 'Dato']); // sin vencimiento
+
+        $this->getJson('/api/buttons')
+            ->assertOk()
+            ->assertJsonPath('data.0.vence_segundos', 50)
+            ->assertJsonPath('data.1.vence_segundos', null);
+    }
 }

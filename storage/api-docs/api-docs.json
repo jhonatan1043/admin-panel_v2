@@ -47,6 +47,12 @@
                                                         "type": "string",
                                                         "example": "https://interno/accion",
                                                         "nullable": true
+                                                    },
+                                                    "vence_segundos": {
+                                                        "description": "Segundos de vencimiento; null = no vence.",
+                                                        "type": "integer",
+                                                        "example": 50,
+                                                        "nullable": true
                                                     }
                                                 },
                                                 "type": "object"

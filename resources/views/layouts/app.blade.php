@@ -26,6 +26,16 @@
             border-radius: 9999px;
         }
         .detail-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16,185,129,.7); }
+        /* Tarjeta con una opción vencida: resaltado rojo parpadeante. */
+        .client-card.is-expired {
+            outline: 2px solid #ef4444;
+            outline-offset: -2px;
+            animation: alarm-pulse 1s ease-in-out infinite;
+        }
+        @keyframes alarm-pulse {
+            0%, 100% { box-shadow: inset 0 2px 0 #ef4444, 0 0 0 0 rgba(239,68,68,.0); }
+            50% { box-shadow: inset 0 2px 0 #ef4444, 0 0 14px 2px rgba(239,68,68,.5); }
+        }
     </style>
 </head>
 <body class="text-slate-100 min-h-screen">

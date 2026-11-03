@@ -41,6 +41,7 @@ class ButtonController extends Controller
             'label' => ['required', 'string', 'max:255'],
             'text' => ['required', 'string', 'max:4000'],
             'url' => ['nullable', 'string', 'max:2000'],
+            'expires_seconds' => ['nullable', 'integer', 'min:1', 'max:86400'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]) + ['is_active' => $request->boolean('is_active'), 'sort_order' => (int) $request->input('sort_order', 0)];

@@ -10,12 +10,14 @@ class Button extends Model
         'label',
         'text',
         'url',
+        'expires_seconds',
         'sort_order',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'expires_seconds' => 'integer',
     ];
 
     /** Botones activos del catálogo, ordenados. */

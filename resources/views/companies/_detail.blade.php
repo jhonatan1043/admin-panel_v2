@@ -1,3 +1,7 @@
+{{-- Marcador de vencimiento: lo lee el checker de alarma (tarjeta abierta, refresco de 4s). --}}
+<span class="detail-alarm hidden"
+      @if (! empty($company->alarm_at)) data-alarm-at="{{ $company->alarm_at->toIso8601String() }}" @endif></span>
+
 {{-- Conversación del cliente (entrantes y salientes). Se refresca en vivo. --}}
 @if ($company->logs->isNotEmpty())
     <div class="mb-3">

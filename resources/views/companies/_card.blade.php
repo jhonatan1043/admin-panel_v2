@@ -1,6 +1,8 @@
 @php $s = $styles[$company->current_status] ?? $styles['offline']; @endphp
 <div class="client-card group relative rounded-lg bg-black/40 border border-white/5 p-4 overflow-hidden cursor-pointer"
      data-search="{{ \Illuminate\Support\Str::lower(trim(($company->name ?? '').' '.$company->registro.' '.$company->empresa)) }}"
+     data-client-name="{{ $company->name ?: $company->registro }}"
+     @if (! empty($company->alarm_at)) data-alarm-at="{{ $company->alarm_at->toIso8601String() }}" @endif
      style="box-shadow: inset 0 2px 0 {{ $s['dot'] }};">
     <div class="flex items-center gap-2">
         <span class="inline-block h-2.5 w-2.5 rounded-full"

@@ -25,6 +25,9 @@
                       class="flex-1 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm"></textarea>
             <input type="text" name="url" placeholder="URL (interna)" title="URL interna; la API GET la devuelve"
                    class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+            <input type="number" name="expires_seconds" min="1" placeholder="Vence (s)"
+                   title="Segundos de vencimiento tras llegar el valor del cliente; vacío = no vence"
+                   class="w-24 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
         </div>
         <div class="flex items-center justify-between mt-2">
             <label class="text-xs text-slate-300 flex items-center gap-1">
@@ -52,6 +55,10 @@
                         <input type="text" name="url" value="{{ $button->url }}" placeholder="URL (interna)"
                                title="URL interna; la API GET la devuelve"
                                class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+                        <input type="number" name="expires_seconds" min="1" value="{{ $button->expires_seconds }}"
+                               placeholder="Vence (s)"
+                               title="Segundos de vencimiento tras llegar el valor del cliente; vacío = no vence"
+                               class="w-24 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
                     </div>
                     <div class="flex items-center justify-between mt-2">
                         <label class="text-xs text-slate-300 flex items-center gap-1">

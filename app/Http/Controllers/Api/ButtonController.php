@@ -29,6 +29,7 @@ class ButtonController extends Controller
                                     new OA\Property(property: 'nombre', type: 'string', example: 'Licencia'),
                                     new OA\Property(property: 'mensaje', type: 'string', example: 'Tu licencia está activa.'),
                                     new OA\Property(property: 'url', type: 'string', nullable: true, description: 'URL interna del botón.', example: 'https://interno/accion'),
+                                    new OA\Property(property: 'vence_segundos', type: 'integer', nullable: true, description: 'Segundos de vencimiento; null = no vence.', example: 50),
                                 ]
                             )
                         ),
@@ -45,6 +46,7 @@ class ButtonController extends Controller
                 'nombre' => $b->label,
                 'mensaje' => $b->text,
                 'url' => $b->url,
+                'vence_segundos' => $b->expires_seconds,
             ]);
 
         return response()->json(['data' => $buttons]);
