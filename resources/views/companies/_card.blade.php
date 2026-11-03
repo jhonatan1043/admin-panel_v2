@@ -57,11 +57,29 @@
         </div>
 
         @if (!empty($company->data))
-            <div class="mb-3 grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
-                @foreach ($company->data as $key => $value)
-                    <span class="text-slate-500">{{ $key }}</span>
-                    <span class="text-slate-300 break-all">{{ is_scalar($value) ? $value : json_encode($value) }}</span>
-                @endforeach
+            @php
+                // Aplanamos la data (incluida la anidada) a pares "clave: valor" legibles,
+                // así nunca se muestra un {} o [] crudo en la tarjeta.
+                $flatData = \Illuminate\Support\Arr::dot($company->data);
+            @endphp
+            <div class="mb-3 max-h-40 overflow-y-auto pr-1 detail-scroll">
+                <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
+                    @foreach ($flatData as $key => $value)
+                        @php
+                            $label = \Illuminate\Support\Str::of((string) $key)
+                                ->replace(['_', '.'], ' ')->trim()->ucfirst();
+                            if (is_bool($value)) {
+                                $display = $value ? 'Sí' : 'No';
+                            } elseif (is_null($value) || $value === '') {
+                                $display = '—';
+                            } else {
+                                $display = (string) $value;
+                            }
+                        @endphp
+                        <span class="text-slate-500 break-words">{{ $label }}</span>
+                        <span class="text-slate-300 break-words">{{ $display }}</span>
+                    @endforeach
+                </div>
             </div>
         @endif
 

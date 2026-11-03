@@ -188,9 +188,10 @@
         // Alarma de vencimiento: cuando una opción con vencimiento ya venció, avisa
         // con un sonido (beeps) durante 30s y marca la tarjeta hasta que se silencie.
         (function () {
-            var DURACION_MS = 30000;   // el sonido dura 30s
+            var DURACION_MS = 30000;   // la alarma (sonido + aviso) dura 30s y luego se quita sola
             var acked = new Set();     // vencimientos ya silenciados
             var seen = new Set();      // vencimientos ya detectados (para no re-sonar)
+            var episodeUntil = {};     // clave => instante en que la alarma se autolimpia
             var soundUntil = 0;        // hasta cuándo debe sonar
             var beepTimer = null;
             var audioCtx = null;
@@ -241,19 +242,47 @@
                 return card.dataset.alarmAt || null;
             }
 
-            function marcarVencida(card, vencida) {
-                var tiene = card.classList.contains('is-expired');
-                if (vencida && !tiene) {
-                    card.classList.add('is-expired');
-                    var b = document.createElement('div');
-                    b.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-red-600 text-white ' +
-                                  'text-[9px] font-bold px-1.5 py-0.5 animate-pulse';
-                    b.textContent = '⏰ VENCIDO';
-                    card.appendChild(b);
-                } else if (!vencida && tiene) {
+            // Pinta el estado del vencimiento en la tarjeta:
+            //  - 'contando': badge ámbar con el tiempo restante (conteo en vivo).
+            //  - 'vencida':  badge rojo "VENCIDO" + resalte de la tarjeta.
+            //  - 'ninguno':  limpia todo.
+            function pintarCuenta(card, estado, restanteMs, silenciada) {
+                var badge = card.querySelector('.alarm-badge');
+
+                if (estado === 'ninguno') {
                     card.classList.remove('is-expired');
-                    var vieja = card.querySelector('.alarm-badge');
-                    if (vieja) vieja.remove();
+                    if (badge) badge.remove();
+                    return;
+                }
+
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'alarm-badge';
+                    card.appendChild(badge);
+                }
+
+                if (estado === 'vencida') {
+                    if (silenciada) {
+                        // Silenciada: sin parpadeo, solo una marca tenue de que venció.
+                        card.classList.remove('is-expired');
+                        badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-red-900/70 text-red-200 ' +
+                                          'text-[9px] font-bold px-1.5 py-0.5';
+                        badge.textContent = '⏰ vencido';
+                    } else {
+                        card.classList.add('is-expired');
+                        badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-red-600 text-white ' +
+                                          'text-[9px] font-bold px-1.5 py-0.5 animate-pulse';
+                        badge.textContent = '⏰ VENCIDO';
+                    }
+                } else { // contando
+                    card.classList.remove('is-expired');
+                    var s = Math.max(0, Math.ceil(restanteMs / 1000));
+                    var mm = Math.floor(s / 60);
+                    var ss = s % 60;
+                    var txt = mm > 0 ? (mm + ':' + (ss < 10 ? '0' + ss : ss)) : (s + 's');
+                    badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-amber-500 text-black ' +
+                                      'text-[9px] font-bold px-1.5 py-0.5';
+                    badge.textContent = '⏳ ' + txt;
                 }
             }
 
@@ -263,28 +292,46 @@
             function revisar() {
                 var now = Date.now();
                 var vencidas = [];
+                var allKeys = new Set(); // todas las claves con vencimiento vigente (cuenta o vencida)
 
                 document.querySelectorAll('.client-card').forEach(function (card) {
                     var dl = deadlineDe(card);
-                    if (!dl) { marcarVencida(card, false); return; }
+                    if (!dl) { pintarCuenta(card, 'ninguno'); return; }
                     var t = Date.parse(dl);
-                    if (isNaN(t)) { marcarVencida(card, false); return; }
-                    var vencida = now >= t;
-                    marcarVencida(card, vencida);
-                    if (vencida) {
-                        vencidas.push({ key: (card.dataset.clientName || '') + '|' + dl,
-                                        name: card.dataset.clientName || 'cliente' });
+                    if (isNaN(t)) { pintarCuenta(card, 'ninguno'); return; }
+
+                    var name = card.dataset.clientName || 'cliente';
+                    var key = name + '|' + dl;
+                    allKeys.add(key);
+
+                    var restante = t - now;
+                    if (restante > 0) {
+                        // Aún no vence: muestra el conteo en vivo.
+                        pintarCuenta(card, 'contando', restante);
+                        return;
                     }
+
+                    // Venció: la alarma vive 30s desde que se detecta y luego se quita sola.
+                    if (!(key in episodeUntil)) episodeUntil[key] = now + DURACION_MS;
+                    if (now >= episodeUntil[key]) {
+                        pintarCuenta(card, 'ninguno'); // pasaron los 30s: se limpia solo
+                        acked.add(key);                 // y no vuelve a sonar/avisar
+                        return;
+                    }
+
+                    // Dentro de la ventana: resalta (salvo que ya se silenció) y suma a la lista.
+                    pintarCuenta(card, 'vencida', 0, acked.has(key));
+                    vencidas.push({ key: key, name: name });
                 });
 
-                var currentKeys = new Set(vencidas.map(function (v) { return v.key; }));
-                // Limpia estados de vencimientos que ya no aplican (p. ej. llegó un valor nuevo).
-                Array.from(seen).forEach(function (k) { if (!currentKeys.has(k)) seen.delete(k); });
-                Array.from(acked).forEach(function (k) { if (!currentKeys.has(k)) acked.delete(k); });
+                // Limpia estados de vencimientos que ya no existen (p. ej. llegó un valor nuevo).
+                Array.from(seen).forEach(function (k) { if (!allKeys.has(k)) seen.delete(k); });
+                Array.from(acked).forEach(function (k) { if (!allKeys.has(k)) acked.delete(k); });
+                Object.keys(episodeUntil).forEach(function (k) { if (!allKeys.has(k)) delete episodeUntil[k]; });
 
                 var sinSilenciar = vencidas.filter(function (v) { return !acked.has(v.key); });
 
-                // Un vencimiento nuevo (no visto) reinicia la ventana de 30s de sonido.
+                // Un vencimiento nuevo (no visto) arranca la ventana de 30s de sonido.
                 sinSilenciar.forEach(function (v) {
                     if (!seen.has(v.key)) { seen.add(v.key); soundUntil = now + DURACION_MS; }
                 });
@@ -292,23 +339,32 @@
                 var sonando = sinSilenciar.length > 0 && now < soundUntil;
                 if (sonando) startBeeping(); else stopBeeping();
 
-                if (vencidas.length > 0) {
+                // El banner solo muestra los vencimientos NO silenciados.
+                if (sinSilenciar.length > 0) {
                     banner.classList.remove('hidden');
-                    var nombres = vencidas.slice(0, 3).map(function (v) { return v.name; }).join(', ');
-                    var extra = vencidas.length > 3 ? ' y ' + (vencidas.length - 3) + ' más' : '';
-                    bannerText.textContent = (vencidas.length === 1 ? 'Opción vencida: ' : 'Opciones vencidas: ') + nombres + extra;
+                    var nombres = sinSilenciar.slice(0, 3).map(function (v) { return v.name; }).join(', ');
+                    var extra = sinSilenciar.length > 3 ? ' y ' + (sinSilenciar.length - 3) + ' más' : '';
+                    bannerText.textContent = (sinSilenciar.length === 1 ? 'Opción vencida: ' : 'Opciones vencidas: ') + nombres + extra;
                 } else {
                     banner.classList.add('hidden');
                 }
             }
 
             document.getElementById('alarm-silence').addEventListener('click', function () {
+                var now = Date.now();
                 document.querySelectorAll('.client-card').forEach(function (card) {
                     var dl = deadlineDe(card);
-                    if (dl) acked.add((card.dataset.clientName || '') + '|' + dl);
+                    if (!dl) return;
+                    var t = Date.parse(dl);
+                    // Solo silencia lo que ya venció; las que aún cuentan quedan intactas.
+                    if (!isNaN(t) && now >= t) {
+                        acked.add((card.dataset.clientName || '') + '|' + dl);
+                    }
                 });
                 soundUntil = 0;
                 stopBeeping();
+                banner.classList.add('hidden');
+                revisar(); // refleja el silencio al instante (banner y tarjetas)
             });
 
             setInterval(revisar, 1000);
