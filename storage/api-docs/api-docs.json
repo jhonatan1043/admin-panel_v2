@@ -164,6 +164,49 @@
                 }
             }
         },
+        "/telegram/login-notification": {
+            "post": {
+                "tags": [
+                    "Mensajería"
+                ],
+                "summary": "Notifica al grupo configurado un inicio de sesión de prueba exitoso",
+                "description": "El mensaje incluye el usuario y los datos adicionales guardados en la solicitud. Omite campos sensibles como contraseñas y tokens.",
+                "operationId": "3bb8266f163f708587d5a18880bad115",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_token"
+                                ],
+                                "properties": {
+                                    "session_token": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Notificación enviada"
+                    },
+                    "404": {
+                        "description": "La solicitud no existe"
+                    },
+                    "422": {
+                        "description": "Bot o grupo de Telegram sin configurar"
+                    },
+                    "502": {
+                        "description": "Telegram rechazó o no respondió el envío"
+                    }
+                }
+            }
+        },
         "/companies/{company}/send": {
             "post": {
                 "tags": [
