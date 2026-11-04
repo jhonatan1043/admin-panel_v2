@@ -1,0 +1,32 @@
+# Nginx Proxy Manager: proxy inverso + certificados SSL (Let's Encrypt)
+# Panel de administración: http://localhost:81  (no exponer el 81 a internet)
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:2
+    container_name: npm
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    environment:
+      TZ: America/Bogota
+      DISABLE_IPV6: "true"
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "/usr/bin/check-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  npm-data:
+  npm-letsencrypt:
+
+networks:
+  proxy:
+    external: true
