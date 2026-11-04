@@ -26,6 +26,26 @@
             border-radius: 9999px;
         }
         .detail-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16,185,129,.7); }
+        /* Tarjeta con cronómetro corriendo: borde superior morado. */
+        .client-card.is-counting {
+            box-shadow: inset 0 3px 0 #a855f7 !important;
+        }
+        /* Quedan menos de 10s: el borde morado y el tiempo titilan.
+           (La animación pisa el box-shadow inline del estado de la tarjeta.) */
+        .client-card.is-ending {
+            animation: ending-blink .6s step-end infinite;
+        }
+        .client-card.is-ending .alarm-badge {
+            animation: ending-badge .6s step-end infinite;
+        }
+        @keyframes ending-blink {
+            0%   { box-shadow: inset 0 3px 0 #a855f7, 0 0 12px 1px rgba(168,85,247,.55); }
+            50%  { box-shadow: inset 0 3px 0 transparent, 0 0 0 0 transparent; }
+        }
+        @keyframes ending-badge {
+            0%   { opacity: 1; }
+            50%  { opacity: .15; }
+        }
         /* Tarjeta con una opción vencida: resaltado rojo parpadeante. */
         .client-card.is-expired {
             outline: 2px solid #ef4444;

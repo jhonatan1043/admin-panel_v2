@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Button;
+use App\Models\ClientLog;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -33,7 +34,6 @@ class CompanyController extends Controller
         $company->load(['logs' => fn ($q) => $q->limit(15)]);
         $expiryByLabel = $this->expiryByLabel();
         $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
-        $this->markTimedReplies($company, $expiryByLabel);
 
         return view('companies._detail', compact('company'));
     }
@@ -103,7 +103,6 @@ class CompanyController extends Controller
         $expiryByLabel = $this->expiryByLabel();
         foreach ($companies as $company) {
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
-            $this->markTimedReplies($company, $expiryByLabel);
         }
 
         // Tablero dividido por empresa; cada grupo mantiene su orden por actividad.
@@ -121,10 +120,14 @@ class CompanyController extends Controller
     }
 
     /**
-     * Calcula cuándo vence el último valor recibido del cliente.
+     * Calcula cuándo vence el cronómetro del cliente y marca en morado
+     * (is_timed_reply) el valor que lo activó.
      *
-     * El reloj arranca cuando llega el valor (mensaje entrante) posterior a la
-     * última opción con vencimiento que se le envió. Devuelve null si no aplica.
+     * El cronómetro arranca cuando llega un mensaje del cliente que:
+     *  - es numérico (p. ej. "482913"), y
+     *  - lo último que se le envió fue un botón con cronómetro.
+     * Si después se envía otro botón con cronómetro, el anterior se descarta
+     * hasta que llegue su propio valor. Devuelve null si no aplica.
      */
     private function computeAlarmAt(Company $company, $expiryByLabel): ?\Illuminate\Support\Carbon
     {
@@ -132,49 +135,41 @@ class CompanyController extends Controller
             return null;
         }
 
-        $logs = $company->logs; // más recientes primero
+        $alarmAt = null;
+        $pendingSeconds = null; // segundos del botón con cronómetro que espera respuesta
 
-        // Última opción (saliente) con vencimiento que se envió al cliente.
-        $lastOut = $logs->first(
-            fn ($l) => $l->direction === 'out' && isset($expiryByLabel[$l->label])
-        );
-        if (! $lastOut) {
-            return null;
-        }
-
-        // Valor del cliente (entrante) que llegó después de esa opción.
-        $lastIn = $logs->first(
-            fn ($l) => $l->direction === 'in' && $l->created_at->gt($lastOut->created_at)
-        );
-        if (! $lastIn) {
-            return null;
-        }
-
-        return $lastIn->created_at->copy()->addSeconds((int) $expiryByLabel[$lastOut->label]);
-    }
-
-    /**
-     * Marca (is_timed_reply) el primer mensaje del cliente que llega después de
-     * cada opción con cronómetro, para pintarlo en morado en la conversación.
-     */
-    private function markTimedReplies(Company $company, $expiryByLabel): void
-    {
-        if ($expiryByLabel->isEmpty()) {
-            return;
-        }
-
-        $pending = false;
         // Los logs vienen más recientes primero: se recorren en orden cronológico.
         foreach ($company->logs->reverse() as $log) {
-            if ($log->direction === 'out') {
-                if (isset($expiryByLabel[$log->label])) {
-                    $pending = true;
+            // Valor del cliente: mensaje entrante de Telegram o el código que envía
+            // por send-test-code (queda como "Código de prueba").
+            $esValor = $log->direction === 'in' || $log->label === ClientLog::TEST_CODE_LABEL;
+
+            if (! $esValor) {
+                $pendingSeconds = isset($expiryByLabel[$log->label])
+                    ? (int) $expiryByLabel[$log->label]
+                    : null;
+                if ($pendingSeconds !== null) {
+                    $alarmAt = null; // nueva opción con cronómetro: espera su propio valor
                 }
-            } elseif ($pending) {
-                $log->is_timed_reply = true;
-                $pending = false;
+                continue;
             }
+
+            if ($pendingSeconds !== null && $this->isNumeric($log->text)) {
+                $log->is_timed_reply = true;
+                $alarmAt = $log->created_at->copy()->addSeconds($pendingSeconds);
+            }
+            $pendingSeconds = null; // solo cuenta el mensaje inmediatamente siguiente
         }
+
+        return $alarmAt;
+    }
+
+    /** ¿El texto es un valor numérico? Se ignoran espacios y guiones (p. ej. "123 456"). */
+    private function isNumeric(?string $text): bool
+    {
+        $clean = preg_replace('/[\s-]+/u', '', (string) $text);
+
+        return $clean !== '' && ctype_digit($clean);
     }
 
     /** Asigna (o quita) el operador de un cliente. Solo admin. */

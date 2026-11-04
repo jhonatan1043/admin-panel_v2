@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClientLog extends Model
 {
+    /** Etiqueta del registro que deja el código que envía el cliente (send-test-code). */
+    public const TEST_CODE_LABEL = 'Código de prueba';
+
     protected $fillable = [
         'company_id',
         'operator_id',

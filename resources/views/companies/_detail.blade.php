@@ -33,7 +33,7 @@
                             <span class="font-semibold text-slate-300">{{ $log->label }}</span>
                             <span class="text-slate-600">· {{ $log->created_at->format('d/m H:i') }}</span>
                         </div>
-                        <div class="text-slate-400 break-words">{{ $log->text }}</div>
+                        <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-400' }} break-words">{{ $log->text }}</div>
                         @if ($log->detail && $log->status !== 'sent')
                             <div class="text-slate-600 break-words">{{ $log->detail }}</div>
                         @endif

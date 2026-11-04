@@ -123,6 +123,70 @@ class LiveBoardTest extends TestCase
         $this->assertMatchesRegularExpression('/timed-reply[^>]*>123456</', $html);
     }
 
+    public function test_el_codigo_de_prueba_tras_un_boton_con_cronometro_lo_activa(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => '⭐️OTP', 'text' => 'OTP', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        // Así llega en la vida real: el botón y luego el código por send-test-code.
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => '⭐️OTP', 'text' => 'OTP', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => ClientLog::TEST_CODE_LABEL, 'text' => '545787', 'status' => 'sent']);
+
+        $html = $this->actingAs($admin)->get('/companies/board')->assertOk()->getContent();
+        $this->assertStringContainsString('data-alarm-at', $html);
+        $this->assertMatchesRegularExpression('/timed-reply[^>]*>545787</', $html);
+    }
+
+    public function test_un_valor_no_numerico_no_activa_el_cronometro(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'Código', 'text' => 'Envíe su código', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'Código', 'text' => 'Envíe su código', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => 'no me llegó', 'status' => 'received']);
+
+        $html = $this->actingAs($admin)->get('/companies/board')->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-alarm-at', $html);
+        $this->assertStringNotContainsString('timed-reply', $html);
+    }
+
+    public function test_el_cronometro_solo_cuenta_si_lo_ultimo_enviado_tiene_cronometro(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'Código', 'text' => 'Envíe su código', 'expires_seconds' => 50]);
+        Button::create(['label' => 'Info', 'text' => 'Dato']); // sin cronómetro
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        $a = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'Código', 'text' => 'Envíe su código', 'status' => 'sent']);
+        $a->forceFill(['created_at' => now()->subSeconds(20)])->save();
+        $b = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'Info', 'text' => 'Dato', 'status' => 'sent']);
+        $b->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => '123456', 'status' => 'received']);
+
+        $this->actingAs($admin)->get('/companies/board')
+            ->assertOk()
+            ->assertDontSee('data-alarm-at', false);
+    }
+
+    public function test_un_codigo_con_espacios_cuenta_como_numerico(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'Código', 'text' => 'Envíe su código', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'Código', 'text' => 'Envíe su código', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => '123 456', 'status' => 'received']);
+
+        $this->actingAs($admin)->get('/companies/board')
+            ->assertOk()
+            ->assertSee('data-alarm-at', false);
+    }
+
     public function test_el_tablero_no_marca_vencimiento_sin_valor_recibido(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

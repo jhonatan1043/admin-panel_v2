@@ -247,6 +247,11 @@
             function pintarCuenta(card, estado, restanteMs, silenciada) {
                 var badge = card.querySelector('.alarm-badge');
 
+                // El borde morado solo va mientras cuenta (titila en los últimos 10s).
+                var terminando = estado === 'contando' && restanteMs <= 10000;
+                card.classList.toggle('is-counting', estado === 'contando' && !terminando);
+                card.classList.toggle('is-ending', terminando);
+
                 if (estado === 'ninguno') {
                     card.classList.remove('is-expired');
                     if (badge) badge.remove();
@@ -278,7 +283,7 @@
                     var mm = Math.floor(s / 60);
                     var ss = s % 60;
                     var txt = mm > 0 ? (mm + ':' + (ss < 10 ? '0' + ss : ss)) : (s + 's');
-                    badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-amber-500 text-black ' +
+                    badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-purple-600 text-white ' +
                                       'text-[9px] font-bold px-1.5 py-0.5';
                     badge.textContent = '⏳ ' + txt;
                 }

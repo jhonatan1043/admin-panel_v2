@@ -219,7 +219,7 @@ class MessagingController extends Controller
 
         return $this->sendText(
             $company,
-            'Código de prueba',
+            ClientLog::TEST_CODE_LABEL,
             $data['code'],
             'Código enviado por Telegram.',
             true,

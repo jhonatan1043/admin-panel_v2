@@ -52,7 +52,8 @@ class Company extends Model
 
     public function logs(): HasMany
     {
-        return $this->hasMany(ClientLog::class)->latest();
+        // Desempate por id: mensajes del mismo segundo conservan su orden real.
+        return $this->hasMany(ClientLog::class)->latest()->orderByDesc('id');
     }
 
     /** Minutos transcurridos desde la última actividad. */
