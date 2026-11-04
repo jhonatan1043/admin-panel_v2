@@ -41,44 +41,42 @@
     </div>
 
     <script>
-        // Presionar un botón: confirma con SweetAlert y envía el texto al Telegram del cliente.
+        // Presionar un botón: envía directo el texto al Telegram del cliente (sin confirmar).
+        // El botón queda deshabilitado mientras se envía y se habilita al mostrar el resultado.
         function sendMessage(e, btn) {
             e.stopPropagation();
+            if (btn.disabled) return; // evita doble envío
             var company = btn.dataset.company;
             var buttonId = btn.dataset.button;
-            var label = btn.dataset.label;
-            var client = btn.dataset.client;
 
-            Swal.fire({
-                title: '¿Enviar mensaje?',
-                html: 'Botón <b>' + label + '</b> al Telegram de <b>' + client + '</b>.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Enviar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#059669',
-            }).then(function (r) {
-                if (!r.isConfirmed) return;
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'wait';
 
-                fetch('/api/companies/' + company + '/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                    },
-                    body: JSON.stringify({ button_id: Number(buttonId) }),
-                }).then(async function (res) {
-                    var data = await res.json().catch(function () { return {}; });
-                    if (res.ok && data.ok) {
-                        Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false });
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'No se pudo enviar', text: data.message || ('Error ' + res.status) });
-                    }
-                }).catch(function () {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo contactar al servidor.' });
-                });
-            });
+            function habilitar() {
+                btn.disabled = false;
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+            }
+
+            fetch('/api/companies/' + company + '/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                },
+                body: JSON.stringify({ button_id: Number(buttonId) }),
+            }).then(async function (res) {
+                var data = await res.json().catch(function () { return {}; });
+                if (res.ok && data.ok) {
+                    Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'No se pudo enviar', text: data.message || ('Error ' + res.status) });
+                }
+            }).catch(function () {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo contactar al servidor.' });
+            }).finally(habilitar);
         }
 
         // Delegación: abre solo la tarjeta seleccionada, el resto se cierra.
