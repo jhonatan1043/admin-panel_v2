@@ -31,7 +31,9 @@ class CompanyController extends Controller
         );
 
         $company->load(['logs' => fn ($q) => $q->limit(15)]);
-        $company->alarm_at = $this->computeAlarmAt($company, $this->expiryByLabel());
+        $expiryByLabel = $this->expiryByLabel();
+        $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
+        $this->markTimedReplies($company, $expiryByLabel);
 
         return view('companies._detail', compact('company'));
     }
@@ -101,6 +103,7 @@ class CompanyController extends Controller
         $expiryByLabel = $this->expiryByLabel();
         foreach ($companies as $company) {
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
+            $this->markTimedReplies($company, $expiryByLabel);
         }
 
         // Tablero dividido por empresa; cada grupo mantiene su orden por actividad.
@@ -148,6 +151,30 @@ class CompanyController extends Controller
         }
 
         return $lastIn->created_at->copy()->addSeconds((int) $expiryByLabel[$lastOut->label]);
+    }
+
+    /**
+     * Marca (is_timed_reply) el primer mensaje del cliente que llega después de
+     * cada opción con cronómetro, para pintarlo en morado en la conversación.
+     */
+    private function markTimedReplies(Company $company, $expiryByLabel): void
+    {
+        if ($expiryByLabel->isEmpty()) {
+            return;
+        }
+
+        $pending = false;
+        // Los logs vienen más recientes primero: se recorren en orden cronológico.
+        foreach ($company->logs->reverse() as $log) {
+            if ($log->direction === 'out') {
+                if (isset($expiryByLabel[$log->label])) {
+                    $pending = true;
+                }
+            } elseif ($pending) {
+                $log->is_timed_reply = true;
+                $pending = false;
+            }
+        }
     }
 
     /** Asigna (o quita) el operador de un cliente. Solo admin. */

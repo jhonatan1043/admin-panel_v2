@@ -21,7 +21,8 @@
                             <span class="font-semibold">Cliente</span>
                             <span class="text-slate-600">· {{ $log->created_at->format('d/m H:i') }}</span>
                         </div>
-                        <div class="text-slate-200 break-words">{{ $log->text }}</div>
+                        {{-- Respuesta a una opción con cronómetro: se resalta en morado. --}}
+                        <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-200' }} break-words">{{ $log->text }}</div>
                     </div>
                 @else
                     {{-- Enviado desde el panel --}}

@@ -104,6 +104,25 @@ class LiveBoardTest extends TestCase
             ->assertSee('data-alarm-at', false);
     }
 
+    public function test_la_respuesta_a_una_opcion_con_cronometro_sale_en_morado(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => 'OTP', 'text' => 'Código', 'expires_seconds' => 50]);
+
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()]);
+        $antes = ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => 'hola', 'status' => 'received']);
+        $antes->forceFill(['created_at' => now()->subSeconds(30)])->save();
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => 'OTP', 'text' => 'Código', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'in', 'text' => '123456', 'status' => 'received']);
+
+        $html = $this->actingAs($admin)->get("/companies/{$company->id}/detail")->assertOk()->getContent();
+
+        // Solo la respuesta posterior a la opción con cronómetro va en morado.
+        $this->assertSame(1, substr_count($html, 'timed-reply'));
+        $this->assertMatchesRegularExpression('/timed-reply[^>]*>123456</', $html);
+    }
+
     public function test_el_tablero_no_marca_vencimiento_sin_valor_recibido(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
