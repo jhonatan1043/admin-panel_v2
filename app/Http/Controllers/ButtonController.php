@@ -9,7 +9,7 @@ class ButtonController extends Controller
 {
     public function index()
     {
-        $buttons = Button::orderBy('sort_order')->orderBy('id')->get();
+        $buttons = Button::catalog();
 
         return view('buttons.index', compact('buttons'));
     }

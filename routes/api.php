@@ -8,8 +8,9 @@ use Illuminate\Support\Facades\Route;
 
 // GET  /api/clients  -> lista de clientes con su estado calculado por tiempo
 // POST /api/clients  -> registra un cliente nuevo o refresca su actividad (lo pone en verde)
-Route::get('clients', [ClientController::class, 'index']);
-Route::post('clients', [ClientController::class, 'store']);
+// Límites por IP definidos en AppServiceProvider (clients-read / clients-write).
+Route::get('clients', [ClientController::class, 'index'])->middleware('throttle:clients-read');
+Route::post('clients', [ClientController::class, 'store'])->middleware('throttle:clients-write');
 
 // GET /api/buttons -> catálogo de botones creados (id, nombre y mensaje)
 Route::get('buttons', [ButtonController::class, 'index']);

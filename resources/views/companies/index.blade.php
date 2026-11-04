@@ -298,6 +298,8 @@
                 var allKeys = new Set(); // todas las claves con vencimiento vigente (cuenta o vencida)
 
                 document.querySelectorAll('.client-card').forEach(function (card) {
+                    // Solo EN LÍNEA tiene cronómetro/alarma; cualquier otro estado no tiene efecto.
+                    if (card.dataset.status !== 'active') { pintarCuenta(card, 'ninguno'); return; }
                     var dl = deadlineDe(card);
                     if (!dl) { pintarCuenta(card, 'ninguno'); return; }
                     var t = Date.parse(dl);

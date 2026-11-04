@@ -72,11 +72,74 @@
                 "tags": [
                     "Clientes"
                 ],
-                "summary": "Lista de clientes con su estado (verde/amarillo/gris/rojo)",
+                "summary": "Lista paginada de clientes con su estado (verde/amarillo/gris/rojo)",
+                "description": "Ordenada por actividad más reciente. Usa page y per_page para recorrer las páginas.",
                 "operationId": "6536f8d22d25758c3e14dbbe8e228af0",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
+                    "429": {
+                        "description": "Demasiadas solicitudes (límite por IP)"
+                    },
                     "200": {
-                        "description": "Listado de clientes"
+                        "description": "Página de clientes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 120
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -139,6 +202,9 @@
                     }
                 },
                 "responses": {
+                    "429": {
+                        "description": "Demasiadas solicitudes (límite por IP)"
+                    },
                     "201": {
                         "description": "Cliente creado con identificador privado para esta solicitud",
                         "content": {
@@ -199,16 +265,13 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Notificación enviada"
+                        "description": "Notificación en cola de envío (status: queued)."
                     },
                     "404": {
                         "description": "La solicitud no existe"
                     },
                     "422": {
                         "description": "Bot o grupo de Telegram sin configurar"
-                    },
-                    "502": {
-                        "description": "Telegram rechazó o no respondió el envío"
                     }
                 }
             }
@@ -252,16 +315,13 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Mensaje enviado"
+                        "description": "Mensaje en cola de envío (status: queued). El resultado final queda en el detalle del cliente."
                     },
                     "403": {
                         "description": "El cliente no está asignado a este operador"
                     },
                     "422": {
                         "description": "Cliente sin Telegram configurado o datos inválidos"
-                    },
-                    "502": {
-                        "description": "Telegram rechazó o no respondió el envío"
                     }
                 }
             }
@@ -299,16 +359,13 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Código enviado"
+                        "description": "Código en cola de envío (status: queued). El resultado final queda en el detalle del cliente."
                     },
                     "404": {
                         "description": "La solicitud no existe"
                     },
                     "422": {
                         "description": "Cliente sin Telegram configurado o datos inválidos"
-                    },
-                    "502": {
-                        "description": "Telegram rechazó o no respondió el envío"
                     }
                 }
             }

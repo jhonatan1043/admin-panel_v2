@@ -25,16 +25,22 @@
                         <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-200' }} break-words">{{ $log->text }}</div>
                     </div>
                 @else
-                    {{-- Enviado desde el panel --}}
-                    <div class="text-[11px] border-l-2 pl-2
-                                {{ $log->status === 'sent' ? 'border-emerald-500' : 'border-red-500' }}">
-                        <div class="{{ $log->status === 'sent' ? 'text-emerald-400' : 'text-red-400' }}">
-                            {{ $log->status === 'sent' ? '✓' : '✗' }}
+                    {{-- Enviado desde el panel: sent ✓ · queued ⏳ (en cola) · failed ✗ --}}
+                    @php
+                        $st = match ($log->status) {
+                            'sent' => ['border-emerald-500', 'text-emerald-400', '✓'],
+                            'queued' => ['border-amber-500', 'text-amber-400', '⏳'],
+                            default => ['border-red-500', 'text-red-400', '✗'],
+                        };
+                    @endphp
+                    <div class="text-[11px] border-l-2 pl-2 {{ $st[0] }}">
+                        <div class="{{ $st[1] }}" @if ($log->status === 'queued') title="En cola de envío" @endif>
+                            {{ $st[2] }}
                             <span class="font-semibold text-slate-300">{{ $log->label }}</span>
                             <span class="text-slate-600">· {{ $log->created_at->format('d/m H:i') }}</span>
                         </div>
                         <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-400' }} break-words">{{ $log->text }}</div>
-                        @if ($log->detail && $log->status !== 'sent')
+                        @if ($log->detail && $log->status === 'failed')
                             <div class="text-slate-600 break-words">{{ $log->detail }}</div>
                         @endif
                     </div>

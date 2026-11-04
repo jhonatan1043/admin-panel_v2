@@ -19,6 +19,13 @@ class MessageTemplate extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // Las plantillas viajan dentro de GET /api/clients: invalidar esa lista.
+        static::saved(fn () => Company::bumpApiListVersion());
+        static::deleted(fn () => Company::bumpApiListVersion());
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);

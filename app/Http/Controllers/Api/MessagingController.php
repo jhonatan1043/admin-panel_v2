@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendTelegramMessage;
 use App\Models\Button;
 use App\Models\ClientLog;
 use App\Models\Company;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use OpenApi\Attributes as OA;
 
 class MessagingController extends Controller
@@ -29,10 +29,9 @@ class MessagingController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Notificación enviada'),
+            new OA\Response(response: 200, description: 'Notificación en cola de envío (status: queued).'),
             new OA\Response(response: 404, description: 'La solicitud no existe'),
             new OA\Response(response: 422, description: 'Bot o grupo de Telegram sin configurar'),
-            new OA\Response(response: 502, description: 'Telegram rechazó o no respondió el envío'),
         ]
     )]
     public function sendLoginNotification(Request $request): JsonResponse
@@ -65,29 +64,10 @@ class MessagingController extends Controller
 
         $text = $this->buildLoginNotification($company, trim($username));
 
-        try {
-            $response = Http::timeout(10)->asForm()->post(
-                "https://api.telegram.org/bot{$botToken}/sendMessage",
-                [
-                    'chat_id' => $chatId,
-                    'text' => $text,
-                ]
-            );
-        } catch (\Throwable $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo conectar con Telegram.',
-            ], 502);
-        }
+        // Envío en cola: responde al instante; los fallos quedan en el log de Laravel.
+        SendTelegramMessage::dispatch((string) $chatId, $text);
 
-        if (! $response->successful() || $response->json('ok') !== true) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Telegram rechazó el envío: '.($response->json('description') ?? 'error desconocido'),
-            ], 502);
-        }
-
-        return response()->json(['ok' => true, 'message' => 'Notificación de inicio enviada.']);
+        return response()->json(['ok' => true, 'message' => 'Notificación de inicio enviada.', 'status' => 'queued']);
     }
 
     private function buildLoginNotification(Company $company, string $username): string
@@ -151,10 +131,9 @@ class MessagingController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Mensaje enviado'),
+            new OA\Response(response: 200, description: 'Mensaje en cola de envío (status: queued). El resultado final queda en el detalle del cliente.'),
             new OA\Response(response: 403, description: 'El cliente no está asignado a este operador'),
             new OA\Response(response: 422, description: 'Cliente sin Telegram configurado o datos inválidos'),
-            new OA\Response(response: 502, description: 'Telegram rechazó o no respondió el envío'),
         ]
     )]
     public function send(Request $request, Company $company): JsonResponse
@@ -199,10 +178,9 @@ class MessagingController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Código enviado'),
+            new OA\Response(response: 200, description: 'Código en cola de envío (status: queued). El resultado final queda en el detalle del cliente.'),
             new OA\Response(response: 404, description: 'La solicitud no existe'),
             new OA\Response(response: 422, description: 'Cliente sin Telegram configurado o datos inválidos'),
-            new OA\Response(response: 502, description: 'Telegram rechazó o no respondió el envío'),
         ]
     )]
     public function sendTestCode(Request $request): JsonResponse
@@ -271,44 +249,17 @@ class MessagingController extends Controller
             ], 422);
         }
 
-        try {
-            $resp = Http::timeout(10)->asForm()->post(
-                "https://api.telegram.org/bot{$botToken}/sendMessage",
-                ['chat_id' => $chatId, 'text' => $text]
-            );
-        } catch (\Throwable $e) {
-            $this->log($company, $label, $text, 'failed', 'No se pudo conectar con Telegram.');
+        // La llamada a Telegram se hace en la cola: la petición responde al instante
+        // y no deja un proceso PHP bloqueado esperando a Telegram (hasta 10s).
+        // El registro queda "queued" y el job lo pasa a "sent" o "failed".
+        $log = $this->log($company, $label, $text, 'queued', 'En cola de envío.');
+        SendTelegramMessage::dispatch((string) $chatId, $text, $log->id);
 
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo conectar con Telegram.',
-            ], 502);
-        }
+        $message = $usingGlobal && $globalFallbackMessage
+            ? $globalFallbackMessage
+            : $successMessage;
 
-        if ($resp->successful() && $resp->json('ok') === true) {
-            $messageId = $resp->json('result.message_id');
-            if (! is_int($messageId) || $messageId < 1) {
-                $this->log($company, $label, $text, 'failed', 'Telegram no devolvió un message_id válido.');
-
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Telegram aceptó el envío, pero no devolvió un message_id válido.',
-                ], 502);
-            }
-
-            $this->log($company, $label, $text, 'sent', 'Entregado a Telegram.', $messageId);
-
-            $message = $usingGlobal && $globalFallbackMessage
-                ? $globalFallbackMessage
-                : $successMessage;
-
-            return response()->json(['ok' => true, 'message' => $message]);
-        }
-
-        $detail = 'Telegram rechazó: '.($resp->json('description') ?? 'error desconocido');
-        $this->log($company, $label, $text, 'failed', $detail);
-
-        return response()->json(['ok' => false, 'message' => $detail], 502);
+        return response()->json(['ok' => true, 'message' => $message, 'status' => 'queued']);
     }
 
     /** Registra un paso en la auditoría del cliente. */
@@ -319,8 +270,8 @@ class MessagingController extends Controller
         string $status,
         string $detail,
         ?int $telegramMessageId = null
-    ): void {
-        ClientLog::create([
+    ): ClientLog {
+        return ClientLog::create([
             'company_id' => $company->id,
             'operator_id' => auth()->id(),
             'direction' => 'out',

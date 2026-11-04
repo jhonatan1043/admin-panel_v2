@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 class Company extends Model
 {
@@ -13,6 +14,30 @@ class Company extends Model
     public const PENDING_AFTER = 10;   // amarillo
     public const OFFLINE_AFTER = 30;   // gris
     public const DELETABLE_AFTER = 60; // rojo (borrable)
+
+    /**
+     * Versión de la lista de clientes de la API (GET /api/clients).
+     * Cada página se cachea bajo la versión actual; al cambiar un cliente se
+     * sube la versión y todas las páginas viejas dejan de usarse (expiran solas).
+     */
+    public const CACHE_KEY_API_VERSION = 'api.clients.version';
+
+    protected static function booted(): void
+    {
+        // Cualquier cambio de un cliente (alta, edición, actividad, borrado) invalida la lista.
+        static::saved(fn () => self::bumpApiListVersion());
+        static::deleted(fn () => self::bumpApiListVersion());
+    }
+
+    public static function apiListVersion(): string
+    {
+        return (string) Cache::get(self::CACHE_KEY_API_VERSION, '0');
+    }
+
+    public static function bumpApiListVersion(): void
+    {
+        Cache::forever(self::CACHE_KEY_API_VERSION, (string) hrtime(true));
+    }
 
     protected $fillable = [
         'operator_id',

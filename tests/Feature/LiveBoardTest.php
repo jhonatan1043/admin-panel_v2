@@ -139,6 +139,27 @@ class LiveBoardTest extends TestCase
         $this->assertMatchesRegularExpression('/timed-reply[^>]*>545787</', $html);
     }
 
+    public function test_si_el_cliente_no_esta_en_linea_no_hay_cronometro_ni_morado(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Button::create(['label' => '⭐️OTP', 'text' => 'OTP', 'expires_seconds' => 50]);
+
+        // Sin actividad hace 15 min: PENDIENTE (no EN LÍNEA).
+        $company = Company::create(['registro' => 'REG-0001', 'empresa' => 'Acme', 'fecha' => now(), 'last_activity_at' => now()->subMinutes(15)]);
+        $out = ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => '⭐️OTP', 'text' => 'OTP', 'status' => 'sent']);
+        $out->forceFill(['created_at' => now()->subSeconds(10)])->save();
+        ClientLog::create(['company_id' => $company->id, 'direction' => 'out', 'label' => ClientLog::TEST_CODE_LABEL, 'text' => '545787', 'status' => 'sent']);
+
+        $board = $this->actingAs($admin)->get('/companies/board')->assertOk()->getContent();
+        $this->assertStringContainsString('data-status="pending"', $board);
+        $this->assertStringNotContainsString('data-alarm-at', $board);
+        $this->assertStringNotContainsString('timed-reply', $board);
+
+        $detail = $this->actingAs($admin)->get("/companies/{$company->id}/detail")->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-alarm-at', $detail);
+        $this->assertStringNotContainsString('timed-reply', $detail);
+    }
+
     public function test_un_valor_no_numerico_no_activa_el_cronometro(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

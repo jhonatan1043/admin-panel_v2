@@ -4,30 +4,103 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\MessageTemplate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ClientController extends Controller
 {
+    /** Clientes por página en GET /api/clients. */
+    public const DEFAULT_PER_PAGE = 50;
+
+    public const MAX_PER_PAGE = 200;
+
     // GET /api/clients — lista con estado calculado por tiempo.
     #[OA\Get(
         path: '/clients',
         tags: ['Clientes'],
-        summary: 'Lista de clientes con su estado (verde/amarillo/gris/rojo)',
+        summary: 'Lista paginada de clientes con su estado (verde/amarillo/gris/rojo)',
+        description: 'Ordenada por actividad más reciente. Usa page y per_page para recorrer las páginas.',
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, default: 1)),
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: self::MAX_PER_PAGE, default: self::DEFAULT_PER_PAGE)),
+        ],
         responses: [
-            new OA\Response(response: 200, description: 'Listado de clientes'),
+            new OA\Response(response: 429, description: 'Demasiadas solicitudes (límite por IP)'),
+            new OA\Response(
+                response: 200,
+                description: 'Página de clientes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(
+                            property: 'meta',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'current_page', type: 'integer', example: 1),
+                                new OA\Property(property: 'per_page', type: 'integer', example: 50),
+                                new OA\Property(property: 'total', type: 'integer', example: 120),
+                                new OA\Property(property: 'last_page', type: 'integer', example: 3),
+                            ]
+                        ),
+                    ]
+                )
+            ),
         ]
     )]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $clients = Company::with(['messageTemplates' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')])
-            ->orderByDesc('last_activity_at')
-            ->get()
-            ->map(fn (Company $c) => $this->present($c));
+        $data = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
+        ]);
+        $page = (int) ($data['page'] ?? 1);
+        $perPage = (int) ($data['per_page'] ?? self::DEFAULT_PER_PAGE);
 
-        return response()->json(['data' => $clients]);
+        // Se cachea la consulta de cada página (no la respuesta): el estado por tiempo
+        // (verde/amarillo/…) se calcula al momento en present(), así nunca queda viejo.
+        // La versión cambia al crear/editar/borrar un cliente o una plantilla.
+        // Prefijo "list2": formato de arreglos (las entradas viejas con modelos se ignoran).
+        $key = 'api.clients.list2.v'.Company::apiListVersion().".p{$page}.n{$perPage}";
+
+        // En caché solo van arreglos (filas crudas), nunca modelos: la config
+        // cache.serializable_classes = false impide deserializar objetos PHP.
+        $result = Cache::remember($key, now()->addMinutes(5), function () use ($page, $perPage) {
+            $companies = Company::with(['messageTemplates' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')])
+                ->orderByDesc('last_activity_at')
+                ->orderByDesc('id') // orden estable entre páginas
+                ->forPage($page, $perPage)
+                ->get();
+
+            return [
+                'total' => Company::count(),
+                'items' => $companies->map(fn (Company $c) => [
+                    'attributes' => $c->getAttributes(),
+                    'templates' => $c->messageTemplates->map->getAttributes()->all(),
+                ])->all(),
+            ];
+        });
+
+        // Reconstruye los modelos (con sus casts) desde los arreglos cacheados.
+        $items = collect($result['items'])->map(function (array $row) {
+            $company = Company::hydrate([$row['attributes']])->first();
+            $company->setRelation('messageTemplates', MessageTemplate::hydrate($row['templates']));
+
+            return $company;
+        });
+
+        return response()->json([
+            'data' => $items->map(fn (Company $c) => $this->present($c))->values(),
+            'meta' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $result['total'],
+                'last_page' => max(1, (int) ceil($result['total'] / $perPage)),
+            ],
+        ]);
     }
 
     // POST /api/clients — registra/refresca un cliente y lo pone en verde.
@@ -51,6 +124,7 @@ class ClientController extends Controller
             )
         ),
         responses: [
+            new OA\Response(response: 429, description: 'Demasiadas solicitudes (límite por IP)'),
             new OA\Response(
                 response: 201,
                 description: 'Cliente creado con identificador privado para esta solicitud',

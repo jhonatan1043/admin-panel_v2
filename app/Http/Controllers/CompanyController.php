@@ -60,9 +60,13 @@ class CompanyController extends Controller
             if ($log->direction === 'in') {
                 $lines[] = "[{$hora}] Cliente: {$log->text}";
             } else {
-                $estado = $log->status === 'sent' ? 'OK' : 'FALLÓ';
+                $estado = match ($log->status) {
+                    'sent' => 'OK',
+                    'queued' => 'EN COLA',
+                    default => 'FALLÓ',
+                };
                 $lines[] = "[{$hora}] Panel ({$log->label}) [{$estado}]: {$log->text}";
-                if ($log->detail && $log->status !== 'sent') {
+                if ($log->detail && $log->status === 'failed') {
                     $lines[] = "          · {$log->detail}";
                 }
             }
@@ -92,7 +96,7 @@ class CompanyController extends Controller
             ->get();
 
         // Catálogo global de botones, igual para todos los clientes.
-        $buttons = Button::activeOrdered()->get();
+        $buttons = Button::active(); // desde caché
 
         // Operadores disponibles para asignar (solo lo usa el admin).
         $operators = auth()->user()->role === 'admin'
@@ -116,7 +120,7 @@ class CompanyController extends Controller
     /** Mapa etiqueta-de-botón => segundos de vencimiento (solo los que vencen). */
     private function expiryByLabel()
     {
-        return Button::whereNotNull('expires_seconds')->pluck('expires_seconds', 'label');
+        return Button::expiryByLabel(); // desde caché
     }
 
     /**
@@ -131,7 +135,9 @@ class CompanyController extends Controller
      */
     private function computeAlarmAt(Company $company, $expiryByLabel): ?\Illuminate\Support\Carbon
     {
-        if ($expiryByLabel->isEmpty()) {
+        // Solo los clientes EN LÍNEA tienen cronómetro, morado y alarma.
+        // Pendiente / desconectado / borrable: ningún efecto.
+        if ($expiryByLabel->isEmpty() || $company->current_status !== 'active') {
             return null;
         }
 

@@ -40,7 +40,8 @@ class ButtonController extends Controller
     )]
     public function index(): JsonResponse
     {
-        $buttons = Button::orderBy('sort_order')->orderBy('id')->get()
+        $buttons = Button::catalog() // desde caché; se invalida al modificar un botón
+
             ->map(fn (Button $b) => [
                 'id' => $b->id,
                 'nombre' => $b->label,
