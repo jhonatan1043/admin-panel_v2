@@ -1,0 +1,61 @@
+@font-face {
+    font-family: "Open Sans";
+    font-display: swap;
+    src: local("Open Sans"),
+         url("../fonts/open-sans/OpenSans-Regular.woff2") format("woff2"),
+         url("../fonts/open-sans/OpenSans-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Open Sans SemiBold";
+    font-display: swap;
+    src: local("Open Sans SemiBold"),
+         url("../fonts/open-sans/OpenSans-SemiBold.woff2") format("woff2"),
+         url("../fonts/open-sans/OpenSans-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Open Sans Bold";
+    font-display: swap;
+    src: local("Open Sans Bold"),
+         url("../fonts/open-sans/OpenSans-Bold.woff2") format("woff2"),
+         url("../fonts/open-sans/OpenSans-Bold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "CIB Sans Bold";
+    font-display: swap;
+    src: local("CIB Sans Bold"),
+         url("../fonts/cib/CIBFontSans-Bold.woff2") format("woff2"),
+         url("../fonts/cib/CIBFontSans-Bold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "CIB Sans Light";
+    font-display: swap;
+    font-weight: 200;
+    font-style: normal;
+    src: local("CIB Sans Light"),
+         url("../fonts/cib/CIBFontSans-Light.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "CIB Sans";
+    font-display: swap;
+    font-weight: 400;
+    font-style: normal;
+    src: local("CIB Sans"),
+         url("../fonts/cib/CIBFontSans-Regular.woff2") format("woff2"),
+         url("../fonts/cib/CIBFontSans-Regular.ttf") format("opentype");
+}
+
+@font-face {
+    font-family: "BC Icons";
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: local("BC icons"),
+         url("../fonts/icons/icons.woff2") format("woff2"),
+         url("../fonts/icons/icons.woff") format("woff"),
+         url("../fonts/icons/icons.ttf") format("truetype");
+}

