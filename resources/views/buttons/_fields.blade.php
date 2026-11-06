@@ -1,0 +1,49 @@
+@php
+    $field = 'w-full rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm focus:border-emerald-500 outline-none';
+    $lbl = 'block text-[11px] uppercase tracking-wide text-slate-500 mb-1';
+    // $button puede ser null (alta) o un botón existente (edición).
+    $v = fn ($attr, $default = null) => old($attr, $button->{$attr} ?? $default);
+@endphp
+
+<div class="grid sm:grid-cols-6 gap-3">
+    <div class="sm:col-span-2">
+        <label class="{{ $lbl }}">Nombre</label>
+        <input type="text" name="label" value="{{ $v('label') }}" placeholder="Ej: Licencia" required class="{{ $field }}">
+    </div>
+    <div class="sm:col-span-4">
+        <label class="{{ $lbl }}">Texto que se envía al cliente</label>
+        <textarea name="text" rows="2" placeholder="Mensaje…" required class="{{ $field }}">{{ $v('text') }}</textarea>
+    </div>
+
+    <div class="sm:col-span-3">
+        <label class="{{ $lbl }}">Abre vista de proyecto <span class="text-slate-600 normal-case">(opcional)</span></label>
+        <select name="project_view_id" class="{{ $field }}">
+            <option value="">— Ninguna (solo Telegram) —</option>
+            @foreach ($projectViews as $projectName => $views)
+                <optgroup label="{{ $projectName }}">
+                    @foreach ($views as $pv)
+                        <option value="{{ $pv->id }}" @selected((int) $v('project_view_id') === $pv->id)>{{ $pv->name }}</option>
+                    @endforeach
+                </optgroup>
+            @endforeach
+        </select>
+    </div>
+    <div class="sm:col-span-3">
+        <label class="{{ $lbl }}">URL interna <span class="text-slate-600 normal-case">(opcional)</span></label>
+        <input type="text" name="url" value="{{ $v('url') }}" placeholder="https://interno/…" class="{{ $field }}">
+    </div>
+
+    <div class="sm:col-span-2">
+        <label class="{{ $lbl }}">Orden</label>
+        <input type="number" name="sort_order" value="{{ $v('sort_order', 0) }}" class="{{ $field }}">
+    </div>
+    <div class="sm:col-span-2">
+        <label class="{{ $lbl }}">Vence (seg.)</label>
+        <input type="number" name="expires_seconds" min="1" value="{{ $v('expires_seconds') }}" placeholder="No vence" class="{{ $field }}">
+    </div>
+    <div class="sm:col-span-2 flex items-end">
+        <label class="text-xs text-slate-300 flex items-center gap-1.5 pb-1.5">
+            <input type="checkbox" name="is_active" value="1" @checked($button ? $button->is_active : old('is_active', true))> Activo
+        </label>
+    </div>
+</div>
