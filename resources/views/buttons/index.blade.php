@@ -25,6 +25,17 @@
                       class="flex-1 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm"></textarea>
             <input type="text" name="url" placeholder="URL (interna)" title="URL interna; la API GET la devuelve"
                    class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+            <select name="project_view_id" title="Abrir una vista de proyecto (opcional)"
+                    class="w-48 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+                <option value="">— Vista de proyecto —</option>
+                @foreach ($projectViews as $projectName => $views)
+                    <optgroup label="{{ $projectName }}">
+                        @foreach ($views as $pv)
+                            <option value="{{ $pv->id }}">{{ $pv->name }}</option>
+                        @endforeach
+                    </optgroup>
+                @endforeach
+            </select>
             <input type="number" name="expires_seconds" min="1" placeholder="Vence (s)"
                    title="Segundos de vencimiento tras llegar el valor del cliente; vacío = no vence"
                    class="w-24 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
@@ -55,6 +66,17 @@
                         <input type="text" name="url" value="{{ $button->url }}" placeholder="URL (interna)"
                                title="URL interna; la API GET la devuelve"
                                class="w-56 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+                        <select name="project_view_id" title="Abrir una vista de proyecto (opcional)"
+                                class="w-48 rounded bg-black/40 border border-slate-600 px-2 py-1.5 text-sm">
+                            <option value="">— Vista de proyecto —</option>
+                            @foreach ($projectViews as $projectName => $views)
+                                <optgroup label="{{ $projectName }}">
+                                    @foreach ($views as $pv)
+                                        <option value="{{ $pv->id }}" @selected($button->project_view_id === $pv->id)>{{ $pv->name }}</option>
+                                    @endforeach
+                                </optgroup>
+                            @endforeach
+                        </select>
                         <input type="number" name="expires_seconds" min="1" value="{{ $button->expires_seconds }}"
                                placeholder="Vence (s)"
                                title="Segundos de vencimiento tras llegar el valor del cliente; vacío = no vence"

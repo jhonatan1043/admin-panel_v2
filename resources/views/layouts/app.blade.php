@@ -77,6 +77,8 @@
                            class="{{ $item }} {{ request()->routeIs('operators.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Operadores</a>
                         <a href="{{ route('buttons.index') }}"
                            class="{{ $item }} {{ request()->routeIs('buttons.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Botones</a>
+                        <a href="{{ route('projects.index') }}"
+                           class="{{ $item }} {{ request()->routeIs('projects.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Proyectos</a>
                         <a href="{{ route('apis.index') }}"
                            class="{{ $item }} {{ request()->routeIs('apis.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">APIs</a>
                         <a href="{{ route('settings.edit') }}"

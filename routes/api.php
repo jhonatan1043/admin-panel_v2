@@ -28,3 +28,13 @@ Route::middleware(['web', 'auth'])
 // Telegram envía aquí las respuestas del cliente (sin sesión; lo llama Telegram).
 Route::get('telegram/latest-message', [TelegramWebhookController::class, 'latest']);
 Route::post('telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('api.telegram.webhook');
+
+// Recepción de datos de las vistas publicadas (integration.js). Público y con límite por IP.
+Route::post('sitio/{projectSlug}/{viewSlug}/submit', [\App\Http\Controllers\PublicSiteController::class, 'submit'])
+    ->middleware('throttle:30,1')
+    ->name('api.sitio.submit');
+
+// Sondeo de la pantalla de carga: ¿el operador ya pidió la siguiente vista?
+Route::get('sitio/{projectSlug}/{session}/next', [\App\Http\Controllers\PublicSiteController::class, 'next'])
+    ->middleware('throttle:120,1')
+    ->name('api.sitio.next');

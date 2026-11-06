@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Cache;
 
 class Button extends Model
@@ -18,6 +19,7 @@ class Button extends Model
         'label',
         'text',
         'url',
+        'project_view_id',
         'expires_seconds',
         'sort_order',
         'is_active',
@@ -77,5 +79,11 @@ class Button extends Model
     public function scopeActiveOrdered($query)
     {
         return $query->where('is_active', true)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Vista de proyecto que abre este botón (opcional). */
+    public function projectView(): BelongsTo
+    {
+        return $this->belongsTo(ProjectView::class);
     }
 }

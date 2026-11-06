@@ -1,0 +1,195 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Project;
+use App\Models\ProjectView;
+use App\Services\Projects\ViewIntegrator;
+use Illuminate\Http\Request;
+
+class ProjectViewController extends Controller
+{
+    public function __construct(private ViewIntegrator $integrator) {}
+
+    /**
+     * Crea una vista a partir de archivos cargados o de texto pegado.
+     * El HTML se conserva tal cual; el análisis y la integración se generan aparte.
+     */
+    public function store(Request $request, Project $project)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'html' => ['nullable', 'string'],
+            'html_file' => ['nullable', 'file', 'mimetypes:text/html,text/plain', 'max:5120'],
+            'css' => ['nullable', 'string'],
+            'css_file' => ['nullable', 'file', 'max:5120'],
+            'js' => ['nullable', 'string'],
+            'js_file' => ['nullable', 'file', 'max:5120'],
+        ]);
+
+        $html = $this->contentFrom($request, 'html');
+        if (trim((string) $html) === '') {
+            return back()->withInput()->withErrors(['html' => 'Debes cargar o pegar el HTML de la vista.']);
+        }
+
+        $view = $project->views()->create([
+            'name' => $data['name'],
+            'html' => $html,
+            'css' => $this->contentFrom($request, 'css'),
+            'js' => $this->contentFrom($request, 'js'),
+        ]);
+
+        // Análisis + integración automáticos al crear la vista.
+        $this->integrator->integrate($view);
+
+        return redirect()
+            ->route('projects.views.show', [$project, $view])
+            ->with('status', 'Vista cargada y analizada.');
+    }
+
+    /**
+     * Crea o reemplaza la pantalla de carga del proyecto (una por proyecto).
+     * Solo HTML y CSS: el JavaScript de espera lo genera el sistema.
+     */
+    public function storeLoading(Request $request, Project $project)
+    {
+        $request->validate([
+            'html' => ['nullable', 'string'],
+            'html_file' => ['nullable', 'file', 'mimetypes:text/html,text/plain', 'max:5120'],
+            'css' => ['nullable', 'string'],
+            'css_file' => ['nullable', 'file', 'max:5120'],
+        ]);
+
+        $html = $this->contentFrom($request, 'html');
+        $css = $this->contentFrom($request, 'css');
+
+        $loading = $project->loadingView();
+
+        if ($html !== null && trim($html) === '' && ! $loading) {
+            return back()->withErrors(['html' => 'Debes cargar o pegar el HTML de la pantalla de carga.']);
+        }
+
+        if ($loading) {
+            if ($html !== null && trim($html) !== '') {
+                $loading->html = $html;
+            }
+            if ($css !== null) {
+                $loading->css = $css;
+            }
+            $loading->save();
+        } else {
+            $loading = $project->views()->create([
+                'name' => 'Pantalla de carga',
+                'role' => ProjectView::ROLE_LOADING,
+                'slug' => 'cargando',
+                'html' => (string) $html,
+                'css' => $css,
+            ]);
+        }
+
+        $this->integrator->integrate($loading);
+
+        return redirect()->route('projects.show', $project)->with('status', 'Pantalla de carga guardada.');
+    }
+
+    public function show(Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+
+        return view('projects.views.show', compact('project', 'view'));
+    }
+
+    public function update(Request $request, Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'html' => ['nullable', 'string'],
+            'html_file' => ['nullable', 'file', 'mimetypes:text/html,text/plain', 'max:5120'],
+            'css' => ['nullable', 'string'],
+            'css_file' => ['nullable', 'file', 'max:5120'],
+            'js' => ['nullable', 'string'],
+            'js_file' => ['nullable', 'file', 'max:5120'],
+        ]);
+
+        $view->name = $data['name'];
+        $html = $this->contentFrom($request, 'html');
+        if (trim((string) $html) !== '') {
+            $view->html = $html;
+        }
+        $css = $this->contentFrom($request, 'css');
+        $js = $this->contentFrom($request, 'js');
+        if ($css !== null) {
+            $view->css = $css;
+        }
+        if ($js !== null) {
+            $view->js = $js;
+        }
+        $view->save();
+
+        // Al cambiar los archivos se vuelve a analizar y regenerar la integración.
+        $this->integrator->integrate($view);
+
+        return redirect()
+            ->route('projects.views.show', [$project, $view])
+            ->with('status', 'Vista actualizada y reanalizada.');
+    }
+
+    /** Vuelve a analizar la vista y regenera integration.js. */
+    public function analyze(Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+
+        $this->integrator->integrate($view);
+
+        return back()->with('status', 'Vista reanalizada.');
+    }
+
+    /** Guarda los ajustes manuales de la especificación y regenera la integración. */
+    public function updateSpec(Request $request, Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+
+        $data = $request->validate([
+            'spec' => ['required', 'json'],
+        ]);
+
+        $this->integrator->integrate($view, json_decode($data['spec'], true));
+
+        return back()->with('status', 'Configuración de integración guardada.');
+    }
+
+    public function destroy(Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+        $view->delete();
+
+        return redirect()->route('projects.show', $project)->with('status', 'Vista eliminada.');
+    }
+
+    /** Devuelve el integration.js generado como archivo descargable. */
+    public function integrationJs(Project $project, ProjectView $view)
+    {
+        abort_unless($view->project_id === $project->id, 404);
+
+        return response((string) $view->integration_js, 200, [
+            'Content-Type' => 'application/javascript; charset=utf-8',
+        ]);
+    }
+
+    /**
+     * Toma el contenido del campo de texto o, si se cargó archivo, del archivo.
+     * Devuelve null cuando no se envió ninguno (para no sobrescribir en update).
+     */
+    private function contentFrom(Request $request, string $field): ?string
+    {
+        if ($request->hasFile($field.'_file')) {
+            return (string) file_get_contents($request->file($field.'_file')->getRealPath());
+        }
+
+        $value = $request->input($field);
+
+        return $value === null ? null : (string) $value;
+    }
+}

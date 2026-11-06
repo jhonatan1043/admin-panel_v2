@@ -12,7 +12,9 @@ class Company extends Model
 {
     /** Umbrales (en minutos) para el cambio de estado por tiempo sin gestión. */
     public const PENDING_AFTER = 10;   // amarillo
+
     public const OFFLINE_AFTER = 30;   // gris
+
     public const DELETABLE_AFTER = 60; // rojo (borrable)
 
     /**
@@ -51,6 +53,8 @@ class Company extends Model
         'loading_image_path',
         'status',
         'last_activity_at',
+        'next_view_id',
+        'next_view_at',
         'data',
     ];
 
@@ -62,8 +66,15 @@ class Company extends Model
     protected $casts = [
         'last_activity_at' => 'datetime',
         'fecha' => 'datetime',
+        'next_view_at' => 'datetime',
         'data' => 'array',
     ];
+
+    /** Siguiente vista de proyecto que el operador pidió para este cliente. */
+    public function nextView(): BelongsTo
+    {
+        return $this->belongsTo(ProjectView::class, 'next_view_id');
+    }
 
     public function messageTemplates(): HasMany
     {

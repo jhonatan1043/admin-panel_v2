@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Button;
+use App\Models\ProjectView;
 use Illuminate\Http\Request;
 
 class ButtonController extends Controller
@@ -11,7 +12,13 @@ class ButtonController extends Controller
     {
         $buttons = Button::catalog();
 
-        return view('buttons.index', compact('buttons'));
+        // Vistas de proyectos publicados, para que un botón pueda abrir una de ellas.
+        $projectViews = ProjectView::with('project')
+            ->whereHas('project', fn ($q) => $q->where('status', \App\Models\Project::STATUS_PUBLISHED))
+            ->get()
+            ->groupBy(fn (ProjectView $v) => $v->project->name);
+
+        return view('buttons.index', compact('buttons', 'projectViews'));
     }
 
     public function store(Request $request)
@@ -41,9 +48,14 @@ class ButtonController extends Controller
             'label' => ['required', 'string', 'max:255'],
             'text' => ['required', 'string', 'max:4000'],
             'url' => ['nullable', 'string', 'max:2000'],
+            'project_view_id' => ['nullable', 'integer', 'exists:project_views,id'],
             'expires_seconds' => ['nullable', 'integer', 'min:1', 'max:86400'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
-        ]) + ['is_active' => $request->boolean('is_active'), 'sort_order' => (int) $request->input('sort_order', 0)];
+        ]) + [
+            'is_active' => $request->boolean('is_active'),
+            'sort_order' => (int) $request->input('sort_order', 0),
+            'project_view_id' => $request->input('project_view_id') ?: null,
+        ];
     }
 }

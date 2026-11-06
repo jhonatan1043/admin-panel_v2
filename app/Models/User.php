@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -31,7 +32,7 @@ class User extends Authenticatable
     }
 
     /** Clientes asignados a este operador. */
-    public function clients(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function clients(): HasMany
     {
         return $this->hasMany(Company::class, 'operator_id');
     }

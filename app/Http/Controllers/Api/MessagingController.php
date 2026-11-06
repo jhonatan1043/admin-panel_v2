@@ -153,6 +153,22 @@ class MessagingController extends Controller
 
         $button = Button::findOrFail($data['button_id']);
 
+        // Botón amarrado a una vista de proyecto: en vez de enviar texto por Telegram,
+        // pide esa vista para el cliente. Su pantalla de carga la detecta y avanza.
+        if ($button->project_view_id) {
+            $company->forceFill([
+                'next_view_id' => $button->project_view_id,
+                'next_view_at' => now(),
+            ])->save();
+            $company->touchActivity();
+
+            return response()->json([
+                'ok' => true,
+                'message' => "Se solicitó la vista «{$button->label}» al cliente.",
+                'status' => 'next_view_set',
+            ]);
+        }
+
         return $this->sendText(
             $company,
             $button->label,

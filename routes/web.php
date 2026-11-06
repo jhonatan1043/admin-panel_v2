@@ -6,10 +6,26 @@ use App\Http\Controllers\ButtonController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\OperatorController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectViewController;
+use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\SettingsController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('companies.index'));
+// Si el host es un subdominio de un proyecto publicado, se sirve ese proyecto;
+// si no, el panel normal.
+Route::get('/', function (Request $request) {
+    if (PublicSiteController::hostIsProject($request)) {
+        return app(PublicSiteController::class)->serveByHost($request);
+    }
+
+    return redirect()->route('companies.index');
+});
+
+// Servir vistas de proyectos publicados por ruta (siempre disponible, sin DNS).
+Route::get('sitio/{project:slug}/{viewSlug?}', [PublicSiteController::class, 'serve'])
+    ->name('sitio.serve');
 
 // Login
 Route::middleware('guest')->group(function () {
@@ -52,6 +68,25 @@ Route::middleware('auth')->group(function () {
         Route::put('botones/{button}', [ButtonController::class, 'update'])->name('buttons.update');
         Route::delete('botones/{button}', [ButtonController::class, 'destroy'])->name('buttons.destroy');
 
+        // Módulo de proyectos: vistas HTML dinámicas con integración automática.
+        Route::resource('proyectos', ProjectController::class)
+            ->parameters(['proyectos' => 'project'])
+            ->names('projects');
+        Route::post('proyectos/{project}/publicar', [ProjectController::class, 'publish'])->name('projects.publish');
+        Route::post('proyectos/{project}/despublicar', [ProjectController::class, 'unpublish'])->name('projects.unpublish');
+        Route::post('proyectos/{project}/subdominios', [ProjectController::class, 'storeDomain'])->name('projects.domains.store');
+        Route::delete('proyectos/{project}/subdominios/{domain}', [ProjectController::class, 'destroyDomain'])->name('projects.domains.destroy');
+
+        // Vistas de un proyecto.
+        Route::post('proyectos/{project}/vistas', [ProjectViewController::class, 'store'])->name('projects.views.store');
+        Route::post('proyectos/{project}/pantalla-carga', [ProjectViewController::class, 'storeLoading'])->name('projects.loading.store');
+        Route::get('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'show'])->name('projects.views.show');
+        Route::put('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'update'])->name('projects.views.update');
+        Route::post('proyectos/{project}/vistas/{view}/analizar', [ProjectViewController::class, 'analyze'])->name('projects.views.analyze');
+        Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
+        Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');
+        Route::delete('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'destroy'])->name('projects.views.destroy');
+
         Route::get('apis', [ApiDocsController::class, 'index'])->name('apis.index');
         Route::get('apis/spec', [ApiDocsController::class, 'spec'])->name('apis.spec');
 
@@ -60,4 +95,17 @@ Route::middleware('auth')->group(function () {
         Route::put('configuracion', [SettingsController::class, 'update'])->name('settings.update');
         Route::post('configuracion/probar', [SettingsController::class, 'test'])->name('settings.test');
     });
+});
+
+// Para un subdominio de proyecto, cualquier ruta no reconocida sirve esa vista
+// del proyecto (p. ej. contactos.midominio.com/registro -> vista "registro").
+Route::fallback(function (Request $request) {
+    if (PublicSiteController::hostIsProject($request)) {
+        $segment = trim($request->path(), '/');
+        $viewSlug = $segment === '' ? null : explode('/', $segment)[0];
+
+        return app(PublicSiteController::class)->serveByHost($request, $viewSlug);
+    }
+
+    abort(404);
 });
