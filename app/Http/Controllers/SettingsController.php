@@ -14,6 +14,7 @@ class SettingsController extends Controller
         return view('settings.edit', [
             'botToken' => Setting::get('telegram_bot_token'),
             'chatId' => Setting::get('telegram_chat_id'),
+            'soundEnabled' => Setting::get('sound_enabled', '1') === '1',
         ]);
     }
 
@@ -22,10 +23,14 @@ class SettingsController extends Controller
         $data = $request->validate([
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
+            'sound_enabled' => ['nullable', 'boolean'],
         ]);
 
         Setting::put('telegram_bot_token', $data['telegram_bot_token'] ?? null);
         Setting::put('telegram_chat_id', $data['telegram_chat_id'] ?? null);
+        // Sonido de aviso al llegar algo (global). El operador puede silenciarlo
+        // por unos minutos desde el propio tablero.
+        Setting::put('sound_enabled', $request->boolean('sound_enabled') ? '1' : '0');
 
         return back()->with('status', 'Configuración guardada.');
     }
@@ -50,11 +55,11 @@ class SettingsController extends Controller
         if (! ($me->successful() && $me->json('ok') === true)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Token inválido: ' . ($me->json('description') ?? 'Telegram rechazó la conexión.'),
+                'message' => 'Token inválido: '.($me->json('description') ?? 'Telegram rechazó la conexión.'),
             ], 422);
         }
 
-        $bot = '@' . ($me->json('result.username') ?? 'bot');
+        $bot = '@'.($me->json('result.username') ?? 'bot');
 
         if (! $chatId) {
             return response()->json(['ok' => true, 'message' => "Conectado como {$bot}. Sin chat_id: no se envió mensaje de prueba."]);
@@ -68,7 +73,7 @@ class SettingsController extends Controller
         if (! ($send->successful() && $send->json('ok') === true)) {
             return response()->json([
                 'ok' => false,
-                'message' => "Bot OK ({$bot}), pero el chat_id falló: " . ($send->json('description') ?? 'error desconocido'),
+                'message' => "Bot OK ({$bot}), pero el chat_id falló: ".($send->json('description') ?? 'error desconocido'),
             ], 422);
         }
 

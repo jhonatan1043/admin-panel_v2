@@ -28,6 +28,27 @@ class SettingsTest extends TestCase
             ->assertSee('Bot token');
     }
 
+    public function test_guarda_la_preferencia_de_sonido_de_avisos(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Por defecto el sonido viene activado en la pantalla.
+        $this->actingAs($admin)->get('/configuracion')->assertOk()->assertSee('Reproducir un sonido');
+
+        // Apagarlo.
+        $this->actingAs($admin)->put('/configuracion', [
+            'telegram_bot_token' => '',
+            'telegram_chat_id' => '',
+        ])->assertRedirect();
+        $this->assertSame('0', Setting::get('sound_enabled'));
+
+        // Volver a encenderlo.
+        $this->actingAs($admin)->put('/configuracion', [
+            'sound_enabled' => '1',
+        ])->assertRedirect();
+        $this->assertSame('1', Setting::get('sound_enabled'));
+    }
+
     public function test_guarda_el_bot_token_y_el_chat_id_global(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

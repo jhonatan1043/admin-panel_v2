@@ -35,6 +35,14 @@
         </div>
     @endif
 
+    {{-- Control del aviso sonoro: activo / silenciar por X minutos. --}}
+    <div class="flex items-center justify-end mb-3">
+        <button id="btn-sonido" type="button"
+                class="text-xs border border-slate-600 text-slate-300 hover:bg-white/5 rounded px-3 py-1.5">
+            🔔 Sonido
+        </button>
+    </div>
+
     {{-- La grilla se refresca sola por polling; su contenido viene de companies._board. --}}
     <div id="board">
         @include('companies._board')
@@ -373,6 +381,137 @@
             });
 
             setInterval(revisar, 1000);
+        })();
+
+        // Aviso sonoro al llegar algo nuevo (cliente nuevo o respuesta entrante).
+        // Se puede silenciar por los minutos que el operador quiera (se recuerda en el navegador).
+        (function () {
+            var LS_KEY = 'avisos_silenciado_hasta';
+            var lastSignal = null;
+            var audioCtx = null;
+
+            function getCtx() {
+                if (!audioCtx) {
+                    var AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) audioCtx = new AC();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                return audioCtx;
+            }
+            // Desbloquea el audio en la primera interacción del operador.
+            document.addEventListener('click', function () { getCtx(); }, { once: true });
+
+            // Doble tono suave, distinto de la alarma de vencimiento.
+            function chime() {
+                var ctx = getCtx();
+                if (!ctx) return;
+                [[660, 0], [880, 0.15]].forEach(function (p) {
+                    var osc = ctx.createOscillator(), gain = ctx.createGain();
+                    var t0 = ctx.currentTime + p[1];
+                    osc.type = 'sine';
+                    osc.frequency.value = p[0];
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(t0);
+                    osc.stop(t0 + 0.32);
+                });
+            }
+
+            function mutedUntil() {
+                try { return parseInt(localStorage.getItem(LS_KEY) || '0', 10) || 0; } catch (e) { return 0; }
+            }
+            function setMuted(untilMs) {
+                try {
+                    if (untilMs > Date.now()) localStorage.setItem(LS_KEY, String(untilMs));
+                    else localStorage.removeItem(LS_KEY);
+                } catch (e) {}
+                pintarBoton();
+            }
+            function silenciado() { return Date.now() < mutedUntil(); }
+            function sonidoActivo() {
+                var el = document.getElementById('board-signal');
+                return !el || el.dataset.sound !== '0'; // activo salvo que Configuración lo apague
+            }
+
+            // Detecta cambios en la señal del tablero (se actualiza en cada refresco).
+            function revisarSenal() {
+                var el = document.getElementById('board-signal');
+                if (!el) return;
+                var sig = el.dataset.signal || '';
+                if (lastSignal === null) { lastSignal = sig; return; } // primera carga: no suena
+                if (sig !== lastSignal) {
+                    lastSignal = sig;
+                    if (sonidoActivo() && !silenciado()) chime();
+                }
+            }
+            setInterval(revisarSenal, 1500);
+
+            var btn = document.getElementById('btn-sonido');
+            function pintarBoton() {
+                if (!btn) return;
+                if (!sonidoActivo()) { btn.textContent = '🔕 Sonido desactivado'; return; }
+                if (silenciado()) {
+                    var mins = Math.max(1, Math.ceil((mutedUntil() - Date.now()) / 60000));
+                    btn.textContent = '🔕 Silenciado (' + mins + ' min)';
+                } else {
+                    btn.textContent = '🔔 Sonido activo';
+                }
+            }
+            setInterval(pintarBoton, 1000);
+            pintarBoton();
+
+            function silenciarMinutos(n) {
+                n = parseInt(n, 10);
+                if (n > 0) setMuted(Date.now() + n * 60000);
+            }
+
+            if (btn) btn.addEventListener('click', function () {
+                getCtx();
+                if (!sonidoActivo()) {
+                    Swal.fire({ icon: 'info', text: 'El sonido está desactivado en Configuración.' });
+                    return;
+                }
+                var est = silenciado()
+                    ? '🔕 Silenciado por ' + Math.max(1, Math.ceil((mutedUntil() - Date.now()) / 60000)) + ' min más.'
+                    : '🔔 El sonido está activo.';
+                var bs = 'display:block;width:100%;margin:4px 0;padding:8px;border-radius:6px;border:1px solid #334155;background:#111827;color:#e2e8f0;cursor:pointer;font-size:13px';
+                Swal.fire({
+                    title: 'Aviso sonoro',
+                    html: '<p style="font-size:12px;color:#94a3b8;margin-bottom:10px">' + est + '</p>'
+                        + '<div>'
+                        + '<button class="swal-mute" data-min="1" style="' + bs + '">Silenciar 1 minuto</button>'
+                        + '<button class="swal-mute" data-min="5" style="' + bs + '">Silenciar 5 minutos</button>'
+                        + '<button class="swal-mute" data-min="10" style="' + bs + '">Silenciar 10 minutos</button>'
+                        + '<button class="swal-mute" data-min="custom" style="' + bs + '">Silenciar otros minutos…</button>'
+                        + (silenciado() ? '<button class="swal-mute" data-min="0" style="' + bs + ';border-color:#059669;color:#6ee7b7">Reactivar ahora</button>' : '')
+                        + '</div>',
+                    showConfirmButton: false,
+                    showCancelButton: true,
+                    cancelButtonText: 'Cerrar',
+                    didOpen: function () {
+                        document.querySelectorAll('.swal-mute').forEach(function (b) {
+                            b.addEventListener('click', function () {
+                                var m = b.dataset.min;
+                                if (m === 'custom') {
+                                    Swal.fire({
+                                        title: '¿Cuántos minutos?',
+                                        input: 'number',
+                                        inputValue: 15,
+                                        inputAttributes: { min: 1, max: 1440 },
+                                        showCancelButton: true,
+                                        confirmButtonText: 'Silenciar',
+                                    }).then(function (r) { if (r.isConfirmed) silenciarMinutos(r.value); });
+                                    return;
+                                }
+                                if (m === '0') setMuted(0); else silenciarMinutos(m);
+                                Swal.close();
+                            });
+                        });
+                    },
+                });
+            });
         })();
     </script>
 @endsection

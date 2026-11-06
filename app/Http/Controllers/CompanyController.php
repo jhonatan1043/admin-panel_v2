@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Button;
 use App\Models\ClientLog;
 use App\Models\Company;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 class CompanyController extends Controller
@@ -49,9 +51,9 @@ class CompanyController extends Controller
         $logs = $company->logs()->get()->sortBy('created_at')->values();
 
         $lines = [
-            'Conversación · ' . ($company->name ?: $company->registro) . ' (' . $company->registro . ')',
-            'Empresa: ' . ($company->empresa ?: '-'),
-            'Exportado: ' . now()->format('d/m/Y H:i'),
+            'Conversación · '.($company->name ?: $company->registro).' ('.$company->registro.')',
+            'Empresa: '.($company->empresa ?: '-'),
+            'Exportado: '.now()->format('d/m/Y H:i'),
             str_repeat('-', 48),
         ];
 
@@ -76,12 +78,12 @@ class CompanyController extends Controller
             $lines[] = '(Sin mensajes)';
         }
 
-        $content = implode("\n", $lines) . "\n";
-        $filename = 'conversacion-' . $company->registro . '.txt';
+        $content = implode("\n", $lines)."\n";
+        $filename = 'conversacion-'.$company->registro.'.txt';
 
         return response($content, 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -114,7 +116,18 @@ class CompanyController extends Controller
             ->groupBy(fn (Company $c) => $c->empresa ?: 'Sin empresa')
             ->sortKeys();
 
-        return compact('companies', 'buttons', 'operators', 'companiesByEmpresa');
+        // Señal de "llegó algo nuevo": cambia cuando entra un cliente nuevo o una
+        // respuesta entrante de los clientes visibles. El tablero la compara entre
+        // refrescos para disparar el sonido de aviso.
+        $lastIncoming = (int) ClientLog::whereIn('company_id', $companies->pluck('id'))
+            ->where('direction', 'in')->max('id');
+        $arrivalSignal = (int) $companies->max('id').'-'.$lastIncoming;
+        $soundEnabled = Setting::get('sound_enabled', '1') === '1';
+
+        return compact(
+            'companies', 'buttons', 'operators', 'companiesByEmpresa',
+            'arrivalSignal', 'soundEnabled'
+        );
     }
 
     /** Mapa etiqueta-de-botón => segundos de vencimiento (solo los que vencen). */
@@ -133,7 +146,7 @@ class CompanyController extends Controller
      * Si después se envía otro botón con cronómetro, el anterior se descarta
      * hasta que llegue su propio valor. Devuelve null si no aplica.
      */
-    private function computeAlarmAt(Company $company, $expiryByLabel): ?\Illuminate\Support\Carbon
+    private function computeAlarmAt(Company $company, $expiryByLabel): ?Carbon
     {
         // Solo los clientes EN LÍNEA tienen cronómetro, morado y alarma.
         // Pendiente / desconectado / borrable: ningún efecto.
@@ -157,6 +170,7 @@ class CompanyController extends Controller
                 if ($pendingSeconds !== null) {
                     $alarmAt = null; // nueva opción con cronómetro: espera su propio valor
                 }
+
                 continue;
             }
 
@@ -198,7 +212,7 @@ class CompanyController extends Controller
 
     public function create()
     {
-        return view('companies.create', ['company' => new Company()]);
+        return view('companies.create', ['company' => new Company]);
     }
 
     public function store(Request $request)
@@ -250,7 +264,7 @@ class CompanyController extends Controller
         return $request->validate([
             'registro' => [
                 'required', 'string', 'max:255',
-                'unique:companies,registro' . ($company ? ',' . $company->id : ''),
+                'unique:companies,registro'.($company ? ','.$company->id : ''),
             ],
             'name' => ['nullable', 'string', 'max:255'],
             'empresa' => ['nullable', 'string', 'max:255'],

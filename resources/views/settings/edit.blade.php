@@ -32,6 +32,19 @@
             </p>
         </div>
 
+        <div class="rounded-lg border border-slate-700/60 bg-black/20 p-4">
+            <h2 class="text-sm font-semibold text-emerald-300 mb-1">Notificaciones</h2>
+            <p class="text-xs text-slate-500 mb-3">
+                Aviso sonoro para el operador cuando llega algo nuevo (un cliente responde o se registra).
+                Desde el tablero se puede silenciar por los minutos que se quiera.
+            </p>
+
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="sound_enabled" value="1" @checked(old('sound_enabled', $soundEnabled))>
+                Reproducir un sonido cuando llegue algo
+            </label>
+        </div>
+
         <div class="flex items-center gap-3">
             <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-2 rounded">
                 Guardar

@@ -9,6 +9,11 @@
     $counts = $companies->groupBy('current_status')->map->count();
 @endphp
 
+{{-- Señal para el aviso sonoro: cambia cuando llega algo nuevo (se lee tras cada refresco). --}}
+<div id="board-signal" hidden
+     data-signal="{{ $arrivalSignal ?? '' }}"
+     data-sound="{{ ($soundEnabled ?? true) ? '1' : '0' }}"></div>
+
 <div class="flex flex-wrap items-center gap-3 mb-5 text-xs">
     <span class="text-slate-400">Clientes:</span>
     <span class="rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 px-2 py-1">
