@@ -3,11 +3,23 @@
 @section('title', 'Proyectos')
 
 @section('content')
-<div class="flex items-center justify-between mb-5">
+<div class="flex items-center justify-between mb-4">
     <h1 class="text-lg font-semibold text-emerald-300">Proyectos</h1>
     <a href="{{ route('projects.create') }}"
        class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-2 rounded">+ Nuevo proyecto</a>
 </div>
+
+<x-tip title="¿Qué es un proyecto y cómo funciona?">
+    <p>Un <strong>proyecto</strong> agrupa las páginas web (<strong>vistas</strong>) de una empresa o campaña. Cargas tu HTML/CSS/JS tal cual y el sistema genera solo la conexión para recibir los datos.</p>
+    <p class="text-slate-400">Flujo general:</p>
+    <ol class="list-decimal list-inside space-y-0.5 text-slate-400">
+        <li>Crea el proyecto y ponle nombre.</li>
+        <li>Carga una o varias vistas (formularios). El sistema las analiza solo.</li>
+        <li>Marca cuál es la <strong>vista principal</strong> (la que abre al entrar).</li>
+        <li>Opcional: carga una <strong>pantalla de carga</strong> para la espera entre pasos.</li>
+        <li>Asocia un <strong>subdominio</strong> y pulsa <strong>Publicar</strong>.</li>
+    </ol>
+</x-tip>
 
 @php
     $badge = [

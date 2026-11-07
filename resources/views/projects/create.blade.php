@@ -6,6 +6,13 @@
 <div class="max-w-xl mx-auto">
     <h1 class="text-lg font-semibold text-emerald-300 mb-4">Nuevo proyecto</h1>
 
+    <x-tip title="Primer paso">
+        <p>Solo necesitas un <strong>nombre</strong> para empezar (por ejemplo, el de la empresa o la campaña). Después, en la página del proyecto, cargarás sus vistas y lo publicarás.</p>
+        @if ($operators->isNotEmpty())
+            <p class="text-slate-400">Como administrador, puedes <strong>asignarlo a un operador</strong>: será su dueño y podrá gestionarlo. Déjalo «Sin asignar» para administrarlo tú.</p>
+        @endif
+    </x-tip>
+
     <form method="POST" action="{{ route('projects.store') }}" class="space-y-4 border border-slate-700 rounded p-5 bg-black/20">
         @csrf
         <div>

@@ -41,6 +41,17 @@
     @endif
 </p>
 
+<x-tip title="Cómo configurar este proyecto (paso a paso)">
+    <ol class="list-decimal list-inside space-y-1">
+        <li><strong>Carga una vista</strong> (abajo): sube o pega el HTML con su CSS y JS. Se conservan intactos; el sistema añade un <code>integration.js</code> para recibir los datos.</li>
+        <li><strong>Revisa la detección</strong>: abre la vista y comprueba los campos que el sistema encontró. Ahí también ves el <code>integration.js</code> generado.</li>
+        <li><strong>Marca la principal</strong> (★): la vista que se abre al entrar al proyecto por su raíz.</li>
+        <li><strong>Pantalla de carga</strong> (opcional): lo que ve el cliente mientras el operador revisa sus datos y le pide la siguiente vista con un botón.</li>
+        <li><strong>Asocia un subdominio</strong> (derecha) y, cuando no falte nada, pulsa <strong>Publicar</strong>.</li>
+    </ol>
+    <p class="text-slate-400">Mientras no lo publiques, puedes probar cada vista en <code>/sitio/{{ $project->slug }}/{vista}</code>.</p>
+</x-tip>
+
 <div class="grid lg:grid-cols-3 gap-4 mt-4">
     {{-- Columna principal: vistas --}}
     <div class="lg:col-span-2 space-y-4">
@@ -233,6 +244,31 @@
                        class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-emerald-500 outline-none">
                 <button class="bg-slate-600 hover:bg-slate-500 text-white text-sm px-3 py-1.5 rounded">+</button>
             </form>
+
+            <x-tip title="Qué configuración debe tener el subdominio" class="mt-3 mb-0">
+                <p>Asociarlo aquí le dice a la app qué proyecto servir en ese host. Para que el subdominio llegue a la app, configúralo así:</p>
+
+                <p class="font-semibold text-slate-200">1. En tu DNS, crea un registro:</p>
+                <ul class="space-y-0.5">
+                    <li><span class="text-slate-400">Tipo:</span> <code>A</code> <span class="text-slate-500">(o <code>CNAME</code> si apuntas a un host, no a una IP)</span></li>
+                    <li><span class="text-slate-400">Nombre / Host:</span> <code>contactos</code> <span class="text-slate-500">(solo la parte del subdominio)</span></li>
+                    <li><span class="text-slate-400">Valor / Apunta a:</span> la <strong>IP pública del servidor</strong> donde corre la app</li>
+                    <li><span class="text-slate-400">TTL:</span> automático (o 3600)</li>
+                </ul>
+
+                <p class="font-semibold text-slate-200">2. En el servidor (proxy inverso), ese host debe:</p>
+                <ul class="space-y-0.5">
+                    <li>Escuchar en los puertos <code>80</code> y <code>443</code>.</li>
+                    <li>Reenviar a la app: <code>http://127.0.0.1:{puerto}</code> <span class="text-slate-500">(el puerto donde corre la app).</span></li>
+                    <li><strong>Conservar el encabezado Host</strong> (que llegue <code>contactos.midominio.com</code>): la app identifica el proyecto por ese host.</li>
+                    <li>Servir por <strong>HTTPS</strong> con el certificado del dominio (Let's Encrypt).</li>
+                </ul>
+                <p class="text-slate-400">En Nginx Proxy Manager: un «Proxy Host» con ese dominio → la app, y en SSL «Request a new certificate» + «Force SSL».</p>
+
+                <p class="font-semibold text-slate-200">3. Aquí en el panel:</p>
+                <p>Añade exactamente <code>contactos.midominio.com</code> arriba en Subdominios y publica el proyecto. Luego, <code>https://{{ $project->domains->first()->host ?? 'contactos.midominio.com' }}</code> servirá su vista principal.</p>
+                <p class="text-slate-400">¿Aún sin DNS? Prueba el proyecto en <code>/sitio/{{ $project->slug }}</code>.</p>
+            </x-tip>
         </div>
 
         @if ($project->views->isNotEmpty())

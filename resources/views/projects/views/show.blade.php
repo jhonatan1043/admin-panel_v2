@@ -30,6 +30,16 @@
     </div>
 </div>
 
+<x-tip title="Qué ves en esta vista">
+    <ul class="list-disc list-inside space-y-1">
+        <li><strong>Elementos detectados</strong>: los campos, formularios y botones que el sistema encontró. Esos datos son los que se recopilarán y enviarán.</li>
+        <li><strong>integration.js</strong>: el archivo que el sistema genera y añade para capturar y enviar los datos. <strong>No modifica</strong> tu HTML, CSS ni JS originales.</li>
+        <li><strong>Configuración de integración</strong>: ajuste avanzado (qué campos se envían y con qué nombre). Al guardar, se regenera el <code>integration.js</code>.</li>
+        <li><strong>Reemplazar archivos</strong>: si cambias el HTML/CSS/JS, la vista se vuelve a analizar sola.</li>
+    </ul>
+    <p class="text-slate-400">Un botón del panel puede abrir esta vista para un cliente; el envío queda ligado a ese mismo cliente por su sesión.</p>
+</x-tip>
+
 @if (!empty($analysis['warnings']))
     <div class="text-xs text-amber-200 bg-amber-600/10 border border-amber-600/40 rounded p-3 mb-4">
         <ul class="list-disc list-inside space-y-0.5">
