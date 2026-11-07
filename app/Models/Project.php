@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -15,10 +16,12 @@ class Project extends Model
     public const STATUS_UNPUBLISHED = 'unpublished';
 
     protected $fillable = [
+        'operator_id',
         'name',
         'slug',
         'description',
         'status',
+        'primary_view_id',
         'published_at',
     ];
 
@@ -48,6 +51,18 @@ class Project extends Model
         return $slug;
     }
 
+    /** Operador dueño/asignado del proyecto (null = sin asignar). */
+    public function operator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'operator_id');
+    }
+
+    /** ¿Este usuario puede gestionar el proyecto? Admin siempre; operador si es el dueño. */
+    public function managedBy(?User $user): bool
+    {
+        return $user !== null && ($user->role === 'admin' || $this->operator_id === $user->id);
+    }
+
     public function views(): HasMany
     {
         return $this->hasMany(ProjectView::class);
@@ -57,6 +72,31 @@ class Project extends Model
     public function formViews(): HasMany
     {
         return $this->hasMany(ProjectView::class)->where('role', ProjectView::ROLE_STANDARD);
+    }
+
+    /** Vista principal (index) elegida, si existe. */
+    public function primaryView(): BelongsTo
+    {
+        return $this->belongsTo(ProjectView::class, 'primary_view_id');
+    }
+
+    /**
+     * Vista que se sirve al entrar al proyecto por la raíz: la principal elegida
+     * (si sigue siendo una vista de formulario válida) o, como respaldo, la primera.
+     */
+    public function indexView(): ?ProjectView
+    {
+        $views = $this->relationLoaded('views') ? $this->views : $this->views()->get();
+        $forms = $views->where('role', ProjectView::ROLE_STANDARD);
+
+        if ($this->primary_view_id) {
+            $primary = $forms->firstWhere('id', $this->primary_view_id);
+            if ($primary) {
+                return $primary;
+            }
+        }
+
+        return $forms->sortBy('id')->first() ?? $views->sortBy('id')->first();
     }
 
     /** Pantalla de espera del proyecto (una por proyecto), si existe. */

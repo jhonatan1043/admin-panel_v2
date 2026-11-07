@@ -17,6 +17,8 @@ class ProjectViewController extends Controller
      */
     public function store(Request $request, Project $project)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'html' => ['nullable', 'string'],
@@ -53,6 +55,8 @@ class ProjectViewController extends Controller
      */
     public function storeLoading(Request $request, Project $project)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
+
         $request->validate([
             'html' => ['nullable', 'string'],
             'html_file' => ['nullable', 'file', 'mimetypes:text/html,text/plain', 'max:5120'],
@@ -94,6 +98,7 @@ class ProjectViewController extends Controller
 
     public function show(Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
         return view('projects.views.show', compact('project', 'view'));
@@ -101,6 +106,7 @@ class ProjectViewController extends Controller
 
     public function update(Request $request, Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
         $data = $request->validate([
@@ -136,9 +142,22 @@ class ProjectViewController extends Controller
             ->with('status', 'Vista actualizada y reanalizada.');
     }
 
+    /** Marca esta vista como la principal (index) del proyecto. */
+    public function makePrimary(Project $project, ProjectView $view)
+    {
+        abort_unless($project->managedBy(auth()->user()), 403);
+        abort_unless($view->project_id === $project->id, 404);
+        abort_if($view->isLoading(), 422, 'La pantalla de carga no puede ser la vista principal.');
+
+        $project->forceFill(['primary_view_id' => $view->id])->save();
+
+        return back()->with('status', "«{$view->name}» es ahora la vista principal.");
+    }
+
     /** Vuelve a analizar la vista y regenera integration.js. */
     public function analyze(Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
         $this->integrator->integrate($view);
@@ -149,6 +168,7 @@ class ProjectViewController extends Controller
     /** Guarda los ajustes manuales de la especificación y regenera la integración. */
     public function updateSpec(Request $request, Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
         $data = $request->validate([
@@ -162,6 +182,7 @@ class ProjectViewController extends Controller
 
     public function destroy(Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
         $view->delete();
 
@@ -171,6 +192,7 @@ class ProjectViewController extends Controller
     /** Devuelve el integration.js generado como archivo descargable. */
     public function integrationJs(Project $project, ProjectView $view)
     {
+        abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
         return response((string) $view->integration_js, 200, [

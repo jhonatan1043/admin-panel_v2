@@ -66,25 +66,29 @@
             </a>
 
             @auth
-                @if (auth()->user()->role === 'admin')
-                    @php
-                        $item = 'px-3 py-1.5 rounded hover:bg-white/5 transition';
-                    @endphp
-                    <div class="flex items-center gap-1 text-xs">
-                        <a href="{{ route('companies.index') }}"
-                           class="{{ $item }} {{ request()->routeIs('companies.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Clientes</a>
+                @php
+                    $item = 'px-3 py-1.5 rounded hover:bg-white/5 transition';
+                    $isAdmin = auth()->user()->role === 'admin';
+                @endphp
+                <div class="flex items-center gap-1 text-xs">
+                    <a href="{{ route('companies.index') }}"
+                       class="{{ $item }} {{ request()->routeIs('companies.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Clientes</a>
+                    @if ($isAdmin)
                         <a href="{{ route('operators.index') }}"
                            class="{{ $item }} {{ request()->routeIs('operators.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Operadores</a>
                         <a href="{{ route('buttons.index') }}"
                            class="{{ $item }} {{ request()->routeIs('buttons.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Botones</a>
-                        <a href="{{ route('projects.index') }}"
-                           class="{{ $item }} {{ request()->routeIs('projects.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Proyectos</a>
+                    @endif
+                    {{-- Proyectos: visible para admin y operadores. --}}
+                    <a href="{{ route('projects.index') }}"
+                       class="{{ $item }} {{ request()->routeIs('projects.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Proyectos</a>
+                    @if ($isAdmin)
                         <a href="{{ route('apis.index') }}"
                            class="{{ $item }} {{ request()->routeIs('apis.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">APIs</a>
                         <a href="{{ route('settings.edit') }}"
                            class="{{ $item }} {{ request()->routeIs('settings.*') ? 'text-emerald-300 bg-white/5' : 'text-slate-300' }}">Configuración</a>
-                    </div>
-                @endif
+                    @endif
+                </div>
             @endauth
 
             @auth

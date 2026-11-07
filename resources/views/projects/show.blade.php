@@ -30,8 +30,16 @@
     </div>
 </div>
 @if ($project->description)
-    <p class="text-sm text-slate-400 mb-4">{{ $project->description }}</p>
+    <p class="text-sm text-slate-400 mb-1">{{ $project->description }}</p>
 @endif
+<p class="text-xs text-slate-500 mb-4">
+    Operador:
+    @if ($project->operator)
+        <span class="text-sky-300">{{ $project->operator->name }}</span>
+    @else
+        <span class="text-slate-500">sin asignar</span>
+    @endif
+</p>
 
 <div class="grid lg:grid-cols-3 gap-4 mt-4">
     {{-- Columna principal: vistas --}}
@@ -42,11 +50,16 @@
             </div>
 
             @forelse ($formViews as $view)
-                @php $s = $view->summary(); @endphp
+                @php $s = $view->summary(); $esPrincipal = $view->id === $indexViewId; @endphp
                 <div class="px-4 py-3 border-b border-slate-800 last:border-0 flex items-center justify-between gap-3">
                     <div>
-                        <a href="{{ route('projects.views.show', [$project, $view]) }}"
-                           class="text-slate-100 hover:text-emerald-300 font-medium text-sm">{{ $view->name }}</a>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('projects.views.show', [$project, $view]) }}"
+                               class="text-slate-100 hover:text-emerald-300 font-medium text-sm">{{ $view->name }}</a>
+                            @if ($esPrincipal)
+                                <span class="text-[11px] text-emerald-300 border border-emerald-600/50 rounded px-1.5 py-0.5" title="Se sirve al entrar al proyecto">★ Principal</span>
+                            @endif
+                        </div>
                         <div class="text-xs text-slate-500 mt-0.5">
                             {{ $s['forms'] }} formulario(s) · {{ $s['fields'] }} campo(s) · {{ $s['buttons'] }} botón(es)
                             @if ($view->isIntegrated())
@@ -56,8 +69,17 @@
                             @endif
                         </div>
                     </div>
-                    <a href="{{ route('projects.views.show', [$project, $view]) }}"
-                       class="shrink-0 text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-1.5 rounded">Abrir</a>
+                    <div class="shrink-0 flex items-center gap-2">
+                        @unless ($esPrincipal)
+                            <form method="POST" action="{{ route('projects.views.primary', [$project, $view]) }}">
+                                @csrf
+                                <button class="text-xs border border-emerald-600/50 text-emerald-300 hover:bg-emerald-500/10 px-3 py-1.5 rounded"
+                                        title="Marcar como la vista que se sirve al entrar al proyecto">Hacer principal</button>
+                            </form>
+                        @endunless
+                        <a href="{{ route('projects.views.show', [$project, $view]) }}"
+                           class="text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-1.5 rounded">Abrir</a>
+                    </div>
                 </div>
             @empty
                 <div class="px-4 py-6 text-sm text-slate-500">Aún no hay vistas. Agrega una con el formulario de abajo.</div>

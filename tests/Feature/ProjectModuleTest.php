@@ -202,10 +202,10 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('<form id="formContactos">', $html);
     }
 
-    public function test_un_operador_no_administrador_no_entra_a_proyectos(): void
+    public function test_un_operador_entra_a_proyectos(): void
     {
         $operator = User::factory()->create(['role' => 'operador']);
 
-        $this->actingAs($operator)->get(route('projects.index'))->assertForbidden();
+        $this->actingAs($operator)->get(route('projects.index'))->assertOk();
     }
 }

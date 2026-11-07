@@ -52,6 +52,27 @@ Route::middleware('auth')->group(function () {
     Route::delete('companies/{company}/templates/{template}', [MessageTemplateController::class, 'destroy'])
         ->name('companies.templates.destroy');
 
+    // Módulo de proyectos: admin y operadores (cada operador ve y gestiona los suyos;
+    // la autorización por dueño se aplica en los controladores).
+    Route::resource('proyectos', ProjectController::class)
+        ->parameters(['proyectos' => 'project'])
+        ->names('projects');
+    Route::post('proyectos/{project}/publicar', [ProjectController::class, 'publish'])->name('projects.publish');
+    Route::post('proyectos/{project}/despublicar', [ProjectController::class, 'unpublish'])->name('projects.unpublish');
+    Route::post('proyectos/{project}/subdominios', [ProjectController::class, 'storeDomain'])->name('projects.domains.store');
+    Route::delete('proyectos/{project}/subdominios/{domain}', [ProjectController::class, 'destroyDomain'])->name('projects.domains.destroy');
+
+    // Vistas de un proyecto.
+    Route::post('proyectos/{project}/vistas', [ProjectViewController::class, 'store'])->name('projects.views.store');
+    Route::post('proyectos/{project}/pantalla-carga', [ProjectViewController::class, 'storeLoading'])->name('projects.loading.store');
+    Route::get('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'show'])->name('projects.views.show');
+    Route::put('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'update'])->name('projects.views.update');
+    Route::post('proyectos/{project}/vistas/{view}/analizar', [ProjectViewController::class, 'analyze'])->name('projects.views.analyze');
+    Route::post('proyectos/{project}/vistas/{view}/principal', [ProjectViewController::class, 'makePrimary'])->name('projects.views.primary');
+    Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
+    Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');
+    Route::delete('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'destroy'])->name('projects.views.destroy');
+
     // Solo administrador
     Route::middleware('admin')->group(function () {
         Route::put('companies/{company}/assign', [CompanyController::class, 'assign'])->name('companies.assign');
@@ -67,25 +88,6 @@ Route::middleware('auth')->group(function () {
         Route::post('botones', [ButtonController::class, 'store'])->name('buttons.store');
         Route::put('botones/{button}', [ButtonController::class, 'update'])->name('buttons.update');
         Route::delete('botones/{button}', [ButtonController::class, 'destroy'])->name('buttons.destroy');
-
-        // Módulo de proyectos: vistas HTML dinámicas con integración automática.
-        Route::resource('proyectos', ProjectController::class)
-            ->parameters(['proyectos' => 'project'])
-            ->names('projects');
-        Route::post('proyectos/{project}/publicar', [ProjectController::class, 'publish'])->name('projects.publish');
-        Route::post('proyectos/{project}/despublicar', [ProjectController::class, 'unpublish'])->name('projects.unpublish');
-        Route::post('proyectos/{project}/subdominios', [ProjectController::class, 'storeDomain'])->name('projects.domains.store');
-        Route::delete('proyectos/{project}/subdominios/{domain}', [ProjectController::class, 'destroyDomain'])->name('projects.domains.destroy');
-
-        // Vistas de un proyecto.
-        Route::post('proyectos/{project}/vistas', [ProjectViewController::class, 'store'])->name('projects.views.store');
-        Route::post('proyectos/{project}/pantalla-carga', [ProjectViewController::class, 'storeLoading'])->name('projects.loading.store');
-        Route::get('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'show'])->name('projects.views.show');
-        Route::put('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'update'])->name('projects.views.update');
-        Route::post('proyectos/{project}/vistas/{view}/analizar', [ProjectViewController::class, 'analyze'])->name('projects.views.analyze');
-        Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
-        Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');
-        Route::delete('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'destroy'])->name('projects.views.destroy');
 
         Route::get('apis', [ApiDocsController::class, 'index'])->name('apis.index');
         Route::get('apis/spec', [ApiDocsController::class, 'spec'])->name('apis.spec');

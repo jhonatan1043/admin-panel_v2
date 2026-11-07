@@ -32,6 +32,11 @@
                         <div class="font-semibold text-slate-100">{{ $project->name }}</div>
                         <div class="text-xs text-slate-400 mt-0.5">
                             {{ $project->views_count }} vista(s)
+                            @if ($project->operator)
+                                · <span class="text-sky-300">{{ $project->operator->name }}</span>
+                            @else
+                                · <span class="text-slate-500">sin asignar</span>
+                            @endif
                             @if ($project->domains->isNotEmpty())
                                 · {{ $project->domains->pluck('host')->implode(', ') }}
                             @endif

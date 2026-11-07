@@ -24,9 +24,11 @@ class PublicSiteController extends Controller
     {
         abort_unless($project->isPublished(), 404);
 
+        // Sin vista en la URL se sirve la principal (index) del proyecto.
         $view = $viewSlug
             ? $project->views()->where('slug', $viewSlug)->firstOrFail()
-            : $project->views()->orderBy('id')->firstOrFail();
+            : $project->indexView();
+        abort_if($view === null, 404);
 
         return response($this->renderer->render($view))
             ->header('Content-Type', 'text/html; charset=utf-8');
