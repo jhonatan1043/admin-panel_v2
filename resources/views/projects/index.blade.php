@@ -37,11 +37,17 @@
 @else
     <div class="grid gap-3">
         @foreach ($projects as $project)
-            <a href="{{ route('projects.show', $project) }}"
-               class="block border border-slate-700 hover:border-emerald-500/60 rounded p-4 bg-black/20 transition">
+            @php
+                // Enlace público del proyecto: su subdominio si tiene, o la ruta /sitio/{slug}.
+                $publicUrl = $project->domains->isNotEmpty()
+                    ? 'https://'.$project->domains->first()->host
+                    : route('sitio.serve', $project);
+            @endphp
+            <div class="border border-slate-700 hover:border-emerald-500/60 rounded p-4 bg-black/20 transition">
                 <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <div class="font-semibold text-slate-100">{{ $project->name }}</div>
+                    <div class="min-w-0">
+                        <a href="{{ route('projects.show', $project) }}"
+                           class="font-semibold text-slate-100 hover:text-emerald-300">{{ $project->name }}</a>
                         <div class="text-xs text-slate-400 mt-0.5">
                             {{ $project->views_count }} vista(s)
                             @if ($project->operator)
@@ -59,8 +65,41 @@
                         {{ $label[$project->status] ?? 'Borrador' }}
                     </span>
                 </div>
-            </a>
+
+                <div class="flex flex-wrap items-center gap-2 mt-3">
+                    <a href="{{ route('projects.show', $project) }}"
+                       class="text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-1.5 rounded">Administrar</a>
+                    @if ($project->isPublished())
+                        <a href="{{ $publicUrl }}" target="_blank" rel="noopener"
+                           class="text-xs border border-emerald-600/50 text-emerald-300 hover:bg-emerald-500/10 px-3 py-1.5 rounded">Abrir sitio ↗</a>
+                        <button type="button" onclick="copiarLink(this, @js($publicUrl))"
+                                class="text-xs border border-sky-600/50 text-sky-300 hover:bg-sky-500/10 px-3 py-1.5 rounded">Copiar link</button>
+                        <span class="text-[11px] text-slate-500 truncate">{{ $publicUrl }}</span>
+                    @else
+                        <span class="text-[11px] text-slate-500">Publica el proyecto para obtener su enlace público.</span>
+                    @endif
+                </div>
+            </div>
         @endforeach
     </div>
+
+    <script>
+        function copiarLink(btn, url) {
+            function ok() {
+                var prev = btn.textContent;
+                btn.textContent = '¡Copiado!';
+                setTimeout(function () { btn.textContent = prev; }, 1500);
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(ok).catch(function () { prompt('Copia el enlace:', url); });
+            } else {
+                // Respaldo para navegadores sin API de portapapeles.
+                var ta = document.createElement('textarea');
+                ta.value = url; document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); ok(); } catch (e) { prompt('Copia el enlace:', url); }
+                document.body.removeChild(ta);
+            }
+        }
+    </script>
 @endif
 @endsection
