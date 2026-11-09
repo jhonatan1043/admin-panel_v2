@@ -45,12 +45,50 @@ class ViewCodeSanitizerTest extends TestCase
     #[Test]
     public function no_toca_un_addeventlistener_que_no_sea_submit(): void
     {
-        $js = 'boton.addEventListener("click", function () { hacer(); });';
+        $js = 'function hacer(){} boton.addEventListener("click", function () { hacer(); });';
 
         $result = $this->sanitize('<div></div>', $js);
 
         $this->assertSame($js, $result['js']);
         $this->assertSame([], $result['changes']);
+    }
+
+    #[Test]
+    public function define_como_vacia_una_funcion_que_la_vista_usa_pero_no_define(): void
+    {
+        // El manejador de input llama a mostrarMensaje, que no existe (caso real).
+        $js = 'box.addEventListener("input", function () { mostrarMensaje("hola"); });';
+
+        $result = $this->sanitize('<input class="box">', $js);
+
+        $this->assertStringContainsString("typeof mostrarMensaje === 'undefined'", $result['js']);
+        $this->assertStringContainsString('window.mostrarMensaje = function', $result['js']);
+        $this->assertTrue(collect($result['changes'])->contains(fn ($c) => str_contains($c, 'mostrarMensaje')));
+    }
+
+    #[Test]
+    public function no_define_funciones_si_la_vista_carga_librerias_externas(): void
+    {
+        $html = '<script src="https://cdn/jquery.js"></script><input class="box">';
+        $js = 'box.addEventListener("input", function () { algoDeLaLibreria(); });';
+
+        $result = $this->sanitize($html, $js);
+
+        $this->assertStringNotContainsString('window.algoDeLaLibreria', $result['js']);
+    }
+
+    #[Test]
+    public function corregir_dos_veces_no_vuelve_a_cambiar_nada(): void
+    {
+        $html = '<form id="f" onsubmit="x()"></form>';
+        $js = 'f.addEventListener("submit", function (e) { e.preventDefault(); mostrarError(); }); function mostrarError(){ mostrarMensaje("x"); }';
+
+        $first = $this->sanitize($html, $js);
+        $this->assertNotEmpty($first['changes']);
+
+        // Segunda pasada sobre el resultado: ya no hay nada que corregir.
+        $second = $this->sanitize($first['html'], $first['js']);
+        $this->assertSame([], $second['changes']);
     }
 
     #[Test]

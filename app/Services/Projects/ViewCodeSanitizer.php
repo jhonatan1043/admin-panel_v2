@@ -21,8 +21,73 @@ class ViewCodeSanitizer
         $changes = [];
         $newHtml = $this->stripOnsubmitAttributes($html, $changes);
         $newJs = $this->neutralizeSubmitListeners((string) $js, $changes);
+        $newJs = $this->defineMissingFunctions($html, $newJs, $changes);
 
         return ['html' => $newHtml, 'js' => $newJs, 'changes' => $changes];
+    }
+
+    /** ¿Hay algo que el sanitizador pueda corregir en esta vista? (para mostrar el botón). */
+    public function needsFix(string $html, ?string $js): bool
+    {
+        return $this->sanitize($html, $js)['changes'] !== [];
+    }
+
+    /**
+     * Define como funciones vacías las que la vista LLAMA pero no DEFINE (p. ej.
+     * `mostrarMensaje`). Así sus manejadores (input, keyup, etc.) no revientan con
+     * "X is not defined" y el resto de su lógica (como el auto-avance) sigue corriendo.
+     * Es conservador: no actúa si la vista carga librerías externas.
+     */
+    private function defineMissingFunctions(string $html, string $js, array &$changes): string
+    {
+        if (trim($js) === '' || str_contains($js, 'Funciones ausentes definidas por el panel')) {
+            return $js;
+        }
+        // Con librerías externas (<script src>) no arriesgamos: sus funciones viven fuera.
+        if (preg_match('/<script[^>]+src\s*=/i', $html)) {
+            return $js;
+        }
+
+        preg_match_all('/\bfunction\s+([a-zA-Z_$][\w$]*)/', $js, $defs);
+        preg_match_all('/\b(?:var|let|const)\s+([a-zA-Z_$][\w$]*)/', $js, $vars);
+        $defined = array_merge($defs[1], $vars[1]);
+
+        // Llamadas tipo nombre( que NO sean métodos (.nombre()).
+        preg_match_all('/(?<![.\w$])([a-zA-Z_$][\w$]*)\s*\(/', $js, $calls);
+
+        $skip = [
+            'if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof', 'new', 'do',
+            'else', 'await', 'void', 'delete', 'throw', 'super', 'in', 'of', 'yield', 'instanceof',
+            'console', 'alert', 'confirm', 'prompt', 'parseInt', 'parseFloat', 'Number', 'String',
+            'Boolean', 'Array', 'Object', 'JSON', 'Math', 'Date', 'fetch', 'setTimeout', 'setInterval',
+            'clearTimeout', 'clearInterval', 'document', 'window', 'encodeURIComponent', 'decodeURIComponent',
+            'isNaN', 'isFinite', 'RegExp', 'Promise', 'Error', 'require', 'jQuery', 'axios', 'Swal',
+            'FormData', 'URL', 'URLSearchParams', 'Map', 'Set', 'Symbol', 'navigator', 'localStorage',
+            'sessionStorage', 'location', 'history', 'event',
+        ];
+
+        $missing = [];
+        foreach (array_unique($calls[1]) as $name) {
+            if (strlen($name) < 3) {
+                continue; // evita $, i, fn cortas
+            }
+            if (in_array($name, $skip, true) || in_array($name, $defined, true)) {
+                continue;
+            }
+            $missing[] = $name;
+        }
+
+        if ($missing === []) {
+            return $js;
+        }
+
+        $stub = "/* Funciones ausentes definidas por el panel para evitar errores */\n";
+        foreach ($missing as $name) {
+            $stub .= "if (typeof {$name} === 'undefined') { window.{$name} = function () {}; }\n";
+        }
+        $changes[] = 'Se definieron como vacías funciones que la vista usa pero no define: '.implode(', ', $missing).'.';
+
+        return $stub.$js;
     }
 
     private function stripOnsubmitAttributes(string $html, array &$changes): string
@@ -78,6 +143,13 @@ class ViewCodeSanitizer
 
             $args = substr($js, $p + 1, $close - $p - 1);
             if (preg_match('/^\s*[\'"`]submit[\'"`]/', $args)) {
+                // Ya neutralizado antes: se deja igual (evita re-corregir y mostrar el botón).
+                if (str_contains($args, 'submit desactivado por el panel')) {
+                    $result .= substr($js, $i, $close + 1 - $i);
+                    $i = $close + 1;
+
+                    continue;
+                }
                 // Texto previo (incluye el objeto y el punto) + llamada neutralizada.
                 $result .= substr($js, $i, $pos - $i);
                 $result .= $needle."('submit', function (ev) { if (ev && ev.preventDefault) ev.preventDefault(); } /* submit desactivado por el panel */)";

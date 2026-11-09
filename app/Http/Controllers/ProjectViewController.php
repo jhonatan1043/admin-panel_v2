@@ -120,12 +120,15 @@ class ProjectViewController extends Controller
         return redirect()->route('projects.show', $project)->with('status', 'Pantalla de carga guardada.');
     }
 
-    public function show(Project $project, ProjectView $view)
+    public function show(Project $project, ProjectView $view, ViewCodeSanitizer $sanitizer)
     {
         abort_unless($project->managedBy(auth()->user()), 403);
         abort_unless($view->project_id === $project->id, 404);
 
-        return view('projects.views.show', compact('project', 'view'));
+        // ¿Hay código propio (submit/onsubmit/funciones ausentes) que se pueda corregir?
+        $canAutoFix = ! $view->isLoading() && $sanitizer->needsFix((string) $view->html, $view->js);
+
+        return view('projects.views.show', compact('project', 'view', 'canAutoFix'));
     }
 
     public function update(Request $request, Project $project, ProjectView $view)
