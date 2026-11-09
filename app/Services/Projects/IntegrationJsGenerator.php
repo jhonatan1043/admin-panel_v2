@@ -75,12 +75,32 @@ class IntegrationJsGenerator
         return el.value != null ? el.value : "";
     }
 
+    function fieldValue(f) {
+        // Campo agrupado (varias cajas de un mismo código): concatena todas en orden.
+        if (f.group) {
+            var selectors = (f.selectors && f.selectors.length) ? f.selectors : [f.selector];
+            var parts = [];
+            if (selectors.length === 1) {
+                // Un selector que puede coincidir con varias cajas (p. ej. mismo name).
+                document.querySelectorAll(selectors[0]).forEach(function (el) {
+                    parts.push(String(readValue(el)));
+                });
+            } else {
+                selectors.forEach(function (sel) {
+                    var el = document.querySelector(sel);
+                    if (el) parts.push(String(readValue(el)));
+                });
+            }
+            return parts.join("");
+        }
+        return readValue(document.querySelector(f.selector));
+    }
+
     function collect(target) {
         var data = {};
         var missing = [];
         (target.fields || []).forEach(function (f) {
-            var el = document.querySelector(f.selector);
-            var value = readValue(el);
+            var value = fieldValue(f);
             if (f.required && (value === "" || value === false)) {
                 missing.push(f.send_as);
             }

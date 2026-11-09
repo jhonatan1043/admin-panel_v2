@@ -71,6 +71,8 @@ class HtmlAnalyzer
                 $standaloneFields[] = $field;
             }
         }
+        // Agrupa cajas de un mismo código (OTP) sueltas en un solo campo concatenado.
+        $standaloneFields = $this->groupCodeFields($standaloneFields);
 
         $standaloneButtons = [];
         foreach ($this->buttonNodes($xpath) as $node) {
@@ -127,6 +129,8 @@ class HtmlAnalyzer
                 $fields[] = $field;
             }
         }
+        // Agrupa cajas de un mismo código (OTP) en un solo campo concatenado.
+        $fields = $this->groupCodeFields($fields);
 
         $submit = null;
         foreach ($this->buttonNodes($xpath, $form) as $node) {
@@ -187,11 +191,116 @@ class HtmlAnalyzer
             'key' => $key,
             'required' => $node->hasAttribute('required'),
             'hidden' => $type === 'hidden',
+            'maxlength' => $this->attr($node, 'maxlength'),
             'placeholder' => $this->attr($node, 'placeholder'),
             'selector' => $this->fieldSelector($node, $name, $id),
             // Config por defecto (la UI puede ajustarla): se envía y conserva su clave.
             'include' => true,
             'send_as' => $key,
+            'group' => false,
+        ];
+    }
+
+    /**
+     * Colapsa las cajas de un mismo código (p. ej. 6 inputs de 1 dígito) en un solo
+     * campo cuyo valor es la concatenación de todas. Detecta dos patrones:
+     *  - varios inputs que comparten el mismo `name`;
+     *  - varias cajas de un carácter (maxlength="1").
+     *
+     * @param  array  $fields  Campos ya detectados en este ámbito (formulario o sueltos).
+     */
+    private function groupCodeFields(array $fields): array
+    {
+        if (count($fields) < 2) {
+            return $fields;
+        }
+
+        $nameCounts = [];
+        foreach ($fields as $f) {
+            if (! empty($f['name'])) {
+                $nameCounts[$f['name']] = ($nameCounts[$f['name']] ?? 0) + 1;
+            }
+        }
+
+        $order = [];      // groupKey => posición en el resultado
+        $members = [];    // groupKey => campos del grupo
+        $result = [];
+
+        foreach ($fields as $f) {
+            if (! empty($f['hidden'])) { // los ocultos no se agrupan
+                $result[] = $f;
+
+                continue;
+            }
+
+            $groupKey = null;
+            if (! empty($f['name']) && ($nameCounts[$f['name']] ?? 0) >= 2) {
+                $groupKey = 'name:'.$f['name'];
+            } elseif (($f['maxlength'] ?? null) === '1') {
+                $groupKey = 'digits';
+            }
+
+            if ($groupKey === null) {
+                $result[] = $f;
+
+                continue;
+            }
+
+            if (! isset($order[$groupKey])) {
+                $order[$groupKey] = count($result);
+                $result[] = null; // reservar el lugar del grupo
+                $members[$groupKey] = [];
+            }
+            $members[$groupKey][] = $f;
+        }
+
+        foreach ($members as $key => $groupFields) {
+            // Un solo miembro no forma grupo: se deja como campo normal.
+            $result[$order[$key]] = count($groupFields) < 2
+                ? $groupFields[0]
+                : $this->collapseGroup($groupFields);
+        }
+
+        return array_values(array_filter($result, fn ($x) => $x !== null));
+    }
+
+    private function collapseGroup(array $members): array
+    {
+        $first = $members[0];
+
+        $names = array_map(fn ($m) => $m['name'] ?? null, $members);
+        $allSameName = $first['name'] && count(array_unique($names)) === 1;
+
+        if ($allSameName) {
+            $sendAs = $first['name'];
+        } else {
+            // Clave a partir de la primera caja, quitando el número final (otp1 -> otp).
+            $sendAs = preg_replace('/[\s_\-]*\d+$/', '', (string) $first['key']);
+            if (strlen((string) $sendAs) < 2) {
+                $sendAs = 'codigo';
+            }
+        }
+
+        // Selectores de las cajas. Si todas comparten selector (mismo name), uno solo
+        // los agarra a todas; si no, se listan los individuales (por id o name).
+        $selectors = array_values(array_unique(array_map(fn ($m) => $m['selector'], $members)));
+
+        return [
+            'tag' => $first['tag'],
+            'type' => $first['type'],
+            'name' => $allSameName ? $first['name'] : null,
+            'id' => null,
+            'key' => $sendAs,
+            'required' => (bool) ($first['required'] ?? false),
+            'hidden' => false,
+            'maxlength' => $first['maxlength'] ?? null,
+            'placeholder' => null,
+            'selector' => $selectors[0],
+            'selectors' => $selectors,
+            'count' => count($members),
+            'group' => true,
+            'include' => true,
+            'send_as' => $sendAs,
         ];
     }
 

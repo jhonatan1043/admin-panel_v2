@@ -138,6 +138,54 @@ class HtmlAnalyzerTest extends TestCase
     }
 
     #[Test]
+    public function agrupa_seis_cajas_de_codigo_con_el_mismo_name_en_un_solo_campo(): void
+    {
+        $boxes = '';
+        for ($i = 0; $i < 6; $i++) {
+            $boxes .= '<input type="text" name="codigo" maxlength="1">';
+        }
+        $html = "<form id=\"otp\">{$boxes}<button type=\"submit\">Validar</button></form>";
+
+        $fields = $this->analyze($html)['forms'][0]['fields'];
+
+        // Las 6 cajas quedan como UN solo campo.
+        $this->assertCount(1, $fields);
+        $this->assertTrue($fields[0]['group']);
+        $this->assertSame('codigo', $fields[0]['send_as']);
+        // Un único selector por name alcanza a las 6 cajas.
+        $this->assertSame(['input[name="codigo"]'], $fields[0]['selectors']);
+    }
+
+    #[Test]
+    public function agrupa_cajas_de_codigo_con_names_distintos_de_un_caracter(): void
+    {
+        $boxes = '';
+        for ($i = 1; $i <= 6; $i++) {
+            $boxes .= "<input type=\"text\" name=\"otp{$i}\" maxlength=\"1\">";
+        }
+        $html = "<form id=\"f\">{$boxes}<button type=\"submit\">Ok</button></form>";
+
+        $fields = $this->analyze($html)['forms'][0]['fields'];
+
+        $this->assertCount(1, $fields);
+        $this->assertTrue($fields[0]['group']);
+        $this->assertSame('otp', $fields[0]['send_as']); // otp1..otp6 -> otp
+        $this->assertCount(6, $fields[0]['selectors']);   // un selector por caja
+        $this->assertSame('input[name="otp1"]', $fields[0]['selectors'][0]);
+    }
+
+    #[Test]
+    public function un_formulario_normal_no_se_agrupa(): void
+    {
+        $html = '<form id="f"><input type="text" name="nombre"><input type="email" name="correo"><button type="submit">Ok</button></form>';
+
+        $fields = $this->analyze($html)['forms'][0]['fields'];
+
+        $this->assertCount(2, $fields);
+        $this->assertFalse($fields[0]['group']);
+    }
+
+    #[Test]
     public function html_vacio_devuelve_estructura_vacia_con_aviso(): void
     {
         $result = $this->analyze('   ');

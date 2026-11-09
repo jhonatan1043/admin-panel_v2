@@ -71,12 +71,18 @@ class IntegrationSpecBuilder
             if (($field['include'] ?? true) === false) {
                 continue;
             }
-            $mapped[] = [
+            $entry = [
                 'selector' => $field['selector'],
                 'send_as' => $field['send_as'] ?? $field['key'],
                 'type' => $field['type'] ?? 'text',
                 'required' => (bool) ($field['required'] ?? false),
             ];
+            // Campo agrupado (cajas de un código): se concatenan todas sus cajas.
+            if (! empty($field['group'])) {
+                $entry['group'] = true;
+                $entry['selectors'] = $field['selectors'] ?? [$field['selector']];
+            }
+            $mapped[] = $entry;
         }
 
         return $mapped;

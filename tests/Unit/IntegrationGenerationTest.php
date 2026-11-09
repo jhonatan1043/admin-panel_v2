@@ -106,6 +106,26 @@ class IntegrationGenerationTest extends TestCase
     }
 
     #[Test]
+    public function un_codigo_de_varias_cajas_se_concatena_en_un_solo_valor(): void
+    {
+        $boxes = '';
+        for ($i = 0; $i < 6; $i++) {
+            $boxes .= '<input type="text" name="codigo" maxlength="1">';
+        }
+        $spec = $this->spec("<form id=\"otp\">{$boxes}<button type=\"submit\">Validar</button></form>");
+
+        // El target tiene un único campo agrupado.
+        $this->assertCount(1, $spec['targets'][0]['fields']);
+        $field = $spec['targets'][0]['fields'][0];
+        $this->assertTrue($field['group']);
+        $this->assertSame('codigo', $field['send_as']);
+
+        $js = (new IntegrationJsGenerator)->generate($spec);
+        $this->assertStringContainsString('querySelectorAll', $js); // recoge todas las cajas
+        $this->assertStringContainsString('parts.join("")', $js);   // y las concatena
+    }
+
+    #[Test]
     public function sin_targets_el_javascript_no_falla(): void
     {
         $js = (new IntegrationJsGenerator)->generate(['endpoint' => '/x', 'targets' => []]);
