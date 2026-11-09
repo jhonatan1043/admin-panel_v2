@@ -52,12 +52,17 @@ class IntegrationJsGenerator
     function currentSession() {
         try {
             var fromUrl = new URLSearchParams(window.location.search).get("s");
-            if (fromUrl) { localStorage.setItem(SESSION_KEY, fromUrl); return fromUrl; }
-            return localStorage.getItem(SESSION_KEY) || null;
+            if (fromUrl) { rememberSession(fromUrl); return fromUrl; }
+            return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem("sessionToken") || null;
         } catch (e) { return null; }
     }
     function rememberSession(token) {
-        try { if (token) localStorage.setItem(SESSION_KEY, token); } catch (e) {}
+        try {
+            if (!token) return;
+            localStorage.setItem(SESSION_KEY, token);
+            // Misma clave que usa la pantalla de carga para identificar al usuario.
+            sessionStorage.setItem("sessionToken", token);
+        } catch (e) {}
     }
 
     function readValue(el) {

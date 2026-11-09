@@ -9,15 +9,15 @@ use Tests\TestCase;
 class LoadingJsGeneratorTest extends TestCase
 {
     #[Test]
-    public function genera_un_script_que_sondea_el_endpoint_next_del_proyecto(): void
+    public function genera_un_script_que_sondea_por_token_de_sesion(): void
     {
         $js = (new LoadingJsGenerator)->generate(['project' => 'call-center-norte']);
 
-        $this->assertStringContainsString('/api/sitio/', $js);
+        $this->assertStringContainsString('/api/solicitud/', $js);
         $this->assertStringContainsString('/next', $js);
-        $this->assertStringContainsString('call-center-norte', $js);
-        $this->assertStringContainsString('URLSearchParams', $js); // lee ?s=
-        $this->assertStringContainsString('window.location.href', $js); // navega a la siguiente vista
+        $this->assertStringContainsString('sessionStorage', $js); // identifica al usuario por su sesión
+        $this->assertStringContainsString('URLSearchParams', $js); // también acepta ?s=
+        $this->assertStringContainsString('window.location.assign', $js); // navega a la siguiente vista
         $this->assertStringNotContainsString('<?php', $js);
     }
 

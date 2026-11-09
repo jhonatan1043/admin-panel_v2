@@ -148,6 +148,25 @@ class ProjectLoadingFlowTest extends TestCase
             ->assertJson(['url' => null]);
     }
 
+    public function test_el_sondeo_por_sesion_devuelve_la_vista_pedida(): void
+    {
+        [$admin, $project] = $this->publishedProject();
+        $view = $project->formViews()->first();
+        $token = $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", [
+            'data' => ['nombre' => 'Ana'],
+        ])->json('loading_token');
+        $company = Company::firstWhere('loading_token', $token);
+        $company->forceFill(['next_view_id' => $view->id, 'next_view_at' => now()])->save();
+
+        // Endpoint por token de sesión (sin proyecto en la URL): identifica al usuario exacto.
+        $this->getJson("/api/solicitud/{$token}/next")
+            ->assertOk()
+            ->assertJson(['url' => "/sitio/{$project->slug}/{$view->slug}?s=".urlencode($token)]);
+
+        // Se consume: la segunda vez ya no la repite.
+        $this->getJson("/api/solicitud/{$token}/next")->assertOk()->assertJson(['url' => null]);
+    }
+
     public function test_next_sin_vista_pendiente_devuelve_null(): void
     {
         [, $project] = $this->publishedProject();

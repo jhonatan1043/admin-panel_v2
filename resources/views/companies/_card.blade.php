@@ -11,7 +11,7 @@
         <span class="text-[10px] tracking-widest {{ $s['text'] }}">{{ $s['label'] }}</span>
         @if ($company->empresa)
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
-                  title="Empresa de origen">{{ $company->empresa }}</span>
+                  title="Proyecto / empresa de origen">{{ $company->empresa }}</span>
         @endif
         @if ($company->current_status === 'deletable')
             <div class="ml-auto flex items-center gap-2 text-[10px]">
@@ -26,7 +26,8 @@
     </div>
 
     <div class="mt-2 flex items-baseline gap-2">
-        <span class="text-lg font-semibold tracking-wide">{{ $company->name ?: $company->registro }}</span>
+        {{-- Título de la tarjeta: nombre del cliente; si no hay, el nombre del proyecto/empresa; y por último el registro. --}}
+        <span class="text-lg font-semibold tracking-wide">{{ $company->name ?: ($company->empresa ?: $company->registro) }}</span>
         @php $fecha = $company->fecha ?? $company->last_activity_at; @endphp
         @if ($fecha)
             <span class="text-[10px] text-slate-500">{{ $fecha->format('d/m/Y H:i') }}</span>

@@ -125,6 +125,15 @@ class PublicSiteController extends Controller
     }
 
     /**
+     * Sondeo por token de sesión del navegador (independiente del proyecto):
+     * ¿el operador ya pidió la siguiente vista para ESTE usuario exacto?
+     */
+    public function nextBySession(string $session): JsonResponse
+    {
+        return $this->next('', $session);
+    }
+
+    /**
      * Sondeo de la pantalla de carga: ¿el operador ya pidió la siguiente vista?
      * Devuelve su URL (con la sesión) una sola vez y la marca como consumida.
      */

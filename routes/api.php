@@ -38,3 +38,9 @@ Route::post('sitio/{projectSlug}/{viewSlug}/submit', [\App\Http\Controllers\Publ
 Route::get('sitio/{projectSlug}/{session}/next', [\App\Http\Controllers\PublicSiteController::class, 'next'])
     ->middleware('throttle:120,1')
     ->name('api.sitio.next');
+
+// Sondeo por token de sesión del navegador (sin proyecto en la URL). Lo usa la
+// pantalla de carga: identifica al usuario exacto por su sesión.
+Route::get('solicitud/{session}/next', [\App\Http\Controllers\PublicSiteController::class, 'nextBySession'])
+    ->middleware('throttle:120,1')
+    ->name('api.solicitud.next');
