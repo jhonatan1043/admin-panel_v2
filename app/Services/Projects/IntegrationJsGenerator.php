@@ -201,22 +201,43 @@ class IntegrationJsGenerator
             });
     }
 
-    function bind(target) {
-        var trigger = target.trigger;
-        if (!trigger || !trigger.selector) return;
-        var el = document.querySelector(trigger.selector);
-        if (!el) return;
+    // Busca el target cuyo disparador coincide con el elemento del evento.
+    function matchTarget(type, el) {
+        for (var i = 0; i < CONFIG.targets.length; i++) {
+            var t = CONFIG.targets[i];
+            if (!t.trigger || t.trigger.type !== type || !t.trigger.selector) continue;
+            if (type === "submit") {
+                if (el.matches && el.matches(t.trigger.selector)) return t;
+            } else if (el.closest && el.closest(t.trigger.selector)) {
+                return t;
+            }
+        }
+        return null;
+    }
 
-        var eventName = trigger.type === "submit" ? "submit" : "click";
-        el.addEventListener(eventName, function (ev) {
-            // Conserva el comportamiento original pero evita el envío nativo del form.
-            if (eventName === "submit") ev.preventDefault();
-            send(target, el.tagName === "FORM" ? el.querySelector('[type="submit"],button') : el);
-        });
+    // Se escucha en FASE DE CAPTURA a nivel de documento: así el panel toma el control
+    // del envío ANTES que cualquier manejador propio de la vista, evitando envíos
+    // dobles y errores del JavaScript original.
+    function onSubmit(ev) {
+        var target = matchTarget("submit", ev.target);
+        if (!target) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation(); // impide que corra el submit propio de la vista
+        var btn = (ev.target.querySelector && ev.target.querySelector('[type="submit"],button')) || ev.target;
+        send(target, btn);
+    }
+
+    function onClick(ev) {
+        var target = matchTarget("click", ev.target);
+        if (!target) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        send(target, ev.target);
     }
 
     function init() {
-        CONFIG.targets.forEach(bind);
+        document.addEventListener("submit", onSubmit, true);
+        document.addEventListener("click", onClick, true);
     }
 
     if (document.readyState === "loading") {

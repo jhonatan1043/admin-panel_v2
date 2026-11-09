@@ -195,6 +195,50 @@ class HtmlAnalyzerTest extends TestCase
     }
 
     #[Test]
+    public function advierte_si_la_vista_trae_su_propio_submit(): void
+    {
+        $html = '<form id="f"><input name="x"><button type="submit">Ok</button></form>';
+        $js = "document.getElementById('f').addEventListener('submit', function (e) { e.preventDefault(); });";
+
+        $warnings = (new HtmlAnalyzer)->analyze($html, $js)['warnings'];
+
+        $this->assertTrue(collect($warnings)->contains(fn ($w) => str_contains($w, 'su propio manejo de envío')));
+    }
+
+    #[Test]
+    public function advierte_si_la_vista_hace_llamadas_de_red(): void
+    {
+        $html = '<form id="f"><input name="x"><button type="submit">Ok</button></form>';
+        $js = "fetch('https://mi-backend.com/api', { method: 'POST' });";
+
+        $warnings = (new HtmlAnalyzer)->analyze($html, $js)['warnings'];
+
+        $this->assertTrue(collect($warnings)->contains(fn ($w) => str_contains($w, 'llamadas de red')));
+    }
+
+    #[Test]
+    public function detecta_onsubmit_en_el_html(): void
+    {
+        $html = '<form id="f" onsubmit="enviar(); return false;"><input name="x"><button type="submit">Ok</button></form>';
+
+        $warnings = (new HtmlAnalyzer)->analyze($html)['warnings'];
+
+        $this->assertTrue(collect($warnings)->contains(fn ($w) => str_contains($w, 'su propio manejo de envío')));
+    }
+
+    #[Test]
+    public function una_vista_sin_js_conflictivo_no_genera_esas_advertencias(): void
+    {
+        $html = '<form id="f"><input name="x"><button type="submit">Ok</button></form>';
+        $js = "document.querySelectorAll('.box').forEach(function (b) { b.addEventListener('input', function () {}); });";
+
+        $warnings = (new HtmlAnalyzer)->analyze($html, $js)['warnings'];
+
+        $this->assertFalse(collect($warnings)->contains(fn ($w) => str_contains($w, 'su propio manejo de envío')));
+        $this->assertFalse(collect($warnings)->contains(fn ($w) => str_contains($w, 'llamadas de red')));
+    }
+
+    #[Test]
     public function conserva_acentos_y_utf8(): void
     {
         $html = '<form id="f"><input type="text" name="nombre" placeholder="Añadir nombre"><button type="submit">Guardár</button></form>';

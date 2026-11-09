@@ -90,6 +90,8 @@ class IntegrationGenerationTest extends TestCase
         $this->assertStringContainsString('X-CSRF-TOKEN', $js);
         $this->assertStringContainsString('addEventListener', $js);
         $this->assertStringContainsString('preventDefault', $js); // no rompe, pero evita submit nativo
+        $this->assertStringContainsString('stopImmediatePropagation', $js); // ignora el submit propio de la vista
+        $this->assertStringContainsString('"submit", onSubmit, true', $js); // intercepta en fase de captura
         // No debe quedar ningún marcador PHP sin resolver.
         $this->assertStringNotContainsString('<?php', $js);
     }

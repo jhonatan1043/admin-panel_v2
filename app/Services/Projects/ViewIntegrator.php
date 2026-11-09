@@ -30,7 +30,8 @@ class ViewIntegrator
             return $this->integrateLoading($view);
         }
 
-        $analysis = $this->analyzer->analyze((string) $view->html);
+        // Se pasa también el JS propio para avisar si trae su propio envío/red.
+        $analysis = $this->analyzer->analyze((string) $view->html, $view->js);
 
         $spec = $specOverride ?? $this->specBuilder->fromAnalysis($analysis, $this->endpointFor($view));
         // La URL de envío siempre la fija el servidor, aunque llegue una spec manual.

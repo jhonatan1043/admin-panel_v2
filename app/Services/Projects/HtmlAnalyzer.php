@@ -30,12 +30,12 @@ class HtmlAnalyzer
      *   'warnings' => [...],
      * ]
      */
-    public function analyze(string $html): array
+    public function analyze(string $html, ?string $js = null): array
     {
-        $warnings = [];
+        $warnings = $this->conflictWarnings($html, $js);
 
         if (trim($html) === '') {
-            return $this->empty(['La vista está vacía.']);
+            return $this->empty(array_merge(['La vista está vacía.'], $warnings));
         }
 
         $dom = new DOMDocument;
@@ -397,6 +397,33 @@ class HtmlAnalyzer
     private function escape(string $value): string
     {
         return str_replace(['"', '\\'], ['\\"', '\\\\'], $value);
+    }
+
+    /**
+     * Detecta en el HTML/JS propios de la vista código que chocará con la integración
+     * generada: su propio manejo de envío (submit) o llamadas de red (fetch/ajax).
+     * Correrían ADEMÁS del integration.js y suelen provocar envíos dobles o errores.
+     *
+     * @return array<int,string>
+     */
+    private function conflictWarnings(string $html, ?string $js): array
+    {
+        $code = $html.' '.(string) $js;
+        $warnings = [];
+
+        if (
+            preg_match('/addEventListener\s*\(\s*[\'"]submit[\'"]/i', $code)
+            || preg_match('/\bonsubmit\s*=/i', $code)
+            || preg_match('/\.onsubmit\s*=/i', $code)
+        ) {
+            $warnings[] = 'La vista trae su propio manejo de envío (submit). El panel toma el control del envío e IGNORA ese manejador, así que no causará envíos dobles ni errores; de todos modos, conviene quitarlo de la vista para mayor claridad.';
+        }
+
+        if (preg_match('/\bfetch\s*\(|XMLHttpRequest|\.ajax\s*\(|\baxios\b|sendBeacon/i', $code)) {
+            $warnings[] = 'La vista hace llamadas de red propias (fetch/ajax). Si son para enviar el formulario, quítalas: el panel ya envía los datos a su endpoint.';
+        }
+
+        return $warnings;
     }
 
     private function empty(array $warnings): array
