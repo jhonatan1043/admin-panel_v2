@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::get('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'show'])->name('projects.views.show');
     Route::put('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'update'])->name('projects.views.update');
     Route::post('proyectos/{project}/vistas/{view}/analizar', [ProjectViewController::class, 'analyze'])->name('projects.views.analyze');
+    Route::post('proyectos/{project}/vistas/{view}/corregir', [ProjectViewController::class, 'fix'])->name('projects.views.fix');
     Route::post('proyectos/{project}/vistas/{view}/principal', [ProjectViewController::class, 'makePrimary'])->name('projects.views.primary');
     Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
     Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');

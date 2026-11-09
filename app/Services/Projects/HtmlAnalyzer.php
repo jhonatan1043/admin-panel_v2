@@ -411,10 +411,15 @@ class HtmlAnalyzer
         $code = $html.' '.(string) $js;
         $warnings = [];
 
+        // Si ya se corrigió con "Corregir automáticamente", el submit quedó neutralizado.
+        $yaCorregido = str_contains($code, 'submit desactivado por el panel');
+
         if (
-            preg_match('/addEventListener\s*\(\s*[\'"]submit[\'"]/i', $code)
-            || preg_match('/\bonsubmit\s*=/i', $code)
-            || preg_match('/\.onsubmit\s*=/i', $code)
+            ! $yaCorregido && (
+                preg_match('/addEventListener\s*\(\s*[\'"]submit[\'"]/i', $code)
+                || preg_match('/\bonsubmit\s*=/i', $code)
+                || preg_match('/\.onsubmit\s*=/i', $code)
+            )
         ) {
             $warnings[] = 'La vista trae su propio manejo de envío (submit). El panel toma el control del envío e IGNORA ese manejador, así que no causará envíos dobles ni errores; de todos modos, conviene quitarlo de la vista para mayor claridad.';
         }

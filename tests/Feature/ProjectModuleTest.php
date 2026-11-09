@@ -202,6 +202,29 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('<form id="formContactos">', $html);
     }
 
+    public function test_corregir_automaticamente_desactiva_el_submit_propio(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'OTP']);
+        $project = Project::firstWhere('name', 'OTP');
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Codigo',
+            'html' => '<form id="otp"><input name="codigo" maxlength="1"><input name="codigo" maxlength="1"><button type="submit">Ir</button></form>',
+            'js' => 'document.getElementById("otp").addEventListener("submit", function (e) { e.preventDefault(); mostrarError(); });',
+        ]);
+        $view = $project->views()->first();
+
+        // El análisis avisa del submit propio.
+        $this->assertTrue(collect($view->analysis['warnings'])->contains(fn ($w) => str_contains($w, 'su propio manejo de envío')));
+
+        $this->actingAs($admin)->post(route('projects.views.fix', [$project, $view]))->assertRedirect();
+
+        $view->refresh();
+        $this->assertStringNotContainsString('mostrarError();', $view->js);
+        $this->assertStringContainsString('submit desactivado por el panel', $view->js);
+    }
+
     public function test_un_operador_entra_a_proyectos(): void
     {
         $operator = User::factory()->create(['role' => 'operador']);

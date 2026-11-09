@@ -41,10 +41,23 @@
 </x-tip>
 
 @if (!empty($analysis['warnings']))
+    @php
+        $tieneConflicto = collect($analysis['warnings'])
+            ->contains(fn ($w) => str_contains($w, 'submit') || str_contains($w, 'llamadas de red'));
+    @endphp
     <div class="text-xs text-amber-200 bg-amber-600/10 border border-amber-600/40 rounded p-3 mb-4">
         <ul class="list-disc list-inside space-y-0.5">
             @foreach ($analysis['warnings'] as $w) <li>{{ $w }}</li> @endforeach
         </ul>
+        @if ($tieneConflicto)
+            <form method="POST" action="{{ route('projects.views.fix', [$project, $view]) }}" class="mt-3">
+                @csrf
+                <button class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded">
+                    Corregir automáticamente
+                </button>
+                <span class="text-[11px] text-amber-200/70 ml-2">Desactiva el submit propio de la vista y quita onsubmit, sin borrar el resto de tu código.</span>
+            </form>
+        @endif
     </div>
 @endif
 

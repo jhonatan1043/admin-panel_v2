@@ -4,12 +4,36 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\ProjectView;
+use App\Services\Projects\ViewCodeSanitizer;
 use App\Services\Projects\ViewIntegrator;
 use Illuminate\Http\Request;
 
 class ProjectViewController extends Controller
 {
     public function __construct(private ViewIntegrator $integrator) {}
+
+    /**
+     * Corrige automáticamente el código de la vista que choca con la integración:
+     * desactiva su propio `submit` y quita `onsubmit`. Luego reanaliza.
+     */
+    public function fix(Project $project, ProjectView $view, ViewCodeSanitizer $sanitizer)
+    {
+        abort_unless($project->managedBy(auth()->user()), 403);
+        abort_unless($view->project_id === $project->id, 404);
+
+        $result = $sanitizer->sanitize((string) $view->html, $view->js);
+
+        if ($result['changes'] === []) {
+            return back()->with('status', 'No se encontró código propio de envío que corregir.');
+        }
+
+        $view->html = $result['html'];
+        $view->js = $result['js'];
+        $view->save();
+        $this->integrator->integrate($view);
+
+        return back()->with('status', 'Código corregido: '.implode(' ', $result['changes']));
+    }
 
     /**
      * Crea una vista a partir de archivos cargados o de texto pegado.
