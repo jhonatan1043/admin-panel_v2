@@ -58,11 +58,14 @@ class ProjectViewController extends Controller
             return back()->withInput()->withErrors(['html' => 'Debes cargar o pegar el HTML de la vista.']);
         }
 
+        // Si se sube una página completa, se separan su CSS (<style>) y JS (<script>).
+        [$html, $css, $js] = $this->splitContent($html, $this->contentFrom($request, 'css'), $this->contentFrom($request, 'js'));
+
         $view = $project->views()->create([
             'name' => $data['name'],
             'html' => $html,
-            'css' => $this->contentFrom($request, 'css'),
-            'js' => $this->contentFrom($request, 'js'),
+            'css' => $css,
+            'js' => $js,
         ]);
 
         // Análisis + integración automáticos al crear la vista.
@@ -240,5 +243,36 @@ class ProjectViewController extends Controller
         $value = $request->input($field);
 
         return $value === null ? null : (string) $value;
+    }
+
+    /**
+     * Si se subió una página HTML completa, separa su contenido: extrae el CSS de las
+     * etiquetas <style> y el JS de las etiquetas <script> en línea (sin src), y los
+     * guarda aparte. Así se almacena el HTML, el CSS y el JavaScript por separado.
+     *
+     * @return array{0:?string,1:?string,2:?string} [html, css, js]
+     */
+    private function splitContent(?string $html, ?string $css, ?string $js): array
+    {
+        if ($html === null || trim($html) === '') {
+            return [$html, $css, $js];
+        }
+
+        if ($css === null || trim((string) $css) === '') {
+            if (preg_match_all('/<style\b[^>]*>(.*?)<\/style>/is', $html, $m) && $m[1] !== []) {
+                $css = trim(implode("\n", array_map('trim', $m[1])));
+                $html = (string) preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
+            }
+        }
+
+        if ($js === null || trim((string) $js) === '') {
+            // Solo <script> en línea (no los que tienen src de librerías externas).
+            if (preg_match_all('/<script\b(?![^>]*\bsrc=)[^>]*>(.*?)<\/script>/is', $html, $m) && $m[1] !== []) {
+                $js = trim(implode("\n", array_map('trim', $m[1])));
+                $html = (string) preg_replace('/<script\b(?![^>]*\bsrc=)[^>]*>.*?<\/script>/is', '', $html);
+            }
+        }
+
+        return [trim($html), $css, $js];
     }
 }

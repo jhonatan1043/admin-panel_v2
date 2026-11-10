@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Project;
 use App\Models\ProjectDomain;
+use App\Services\Projects\ProjectBundleGenerator;
 use App\Services\Projects\ProjectRenderer;
+use App\Services\Projects\ViewIntegrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,11 +21,9 @@ class PublicSiteController extends Controller
 {
     public function __construct(private ProjectRenderer $renderer) {}
 
-    /** Sirve una vista por ruta: /sitio/{proyecto}/{vista?} */
+    /** Sirve una vista por ruta (vista previa): /sitio/{proyecto}/{vista?} */
     public function serve(Project $project, ?string $viewSlug = null)
     {
-        abort_unless($project->isPublished(), 404);
-
         // Sin vista en la URL se sirve la principal (index) del proyecto.
         $view = $viewSlug
             ? $project->views()->where('slug', $viewSlug)->firstOrFail()
@@ -57,7 +57,7 @@ class PublicSiteController extends Controller
             ? $project->views()->where('slug', $viewSlug)->first()
             : null;
 
-        if (! $project || ! $view || ! $project->isPublished()) {
+        if (! $project || ! $view) {
             return response()->json(['ok' => false, 'message' => 'La vista no está disponible.'], 404);
         }
 
@@ -146,16 +146,17 @@ class PublicSiteController extends Controller
         }
 
         $view = $company->nextView()->with('project')->first();
-        if (! $view || ! $view->project || ! $view->project->isPublished()) {
+        if (! $view || ! $view->project) {
             return response()->json(['url' => null])->header('Cache-Control', 'no-store');
         }
 
         // Consumir: se entrega una sola vez para no reenviar en el siguiente sondeo.
         $company->forceFill(['next_view_id' => null, 'next_view_at' => null])->save();
 
-        $url = "/sitio/{$view->project->slug}/{$view->slug}?s=".urlencode($session);
+        $url = ViewIntegrator::apiBase()."/sitio/{$view->project->slug}/{$view->slug}?s=".urlencode($session);
 
-        return response()->json(['url' => $url])->header('Cache-Control', 'no-store');
+        // 'view' = slug para que el bundle index.js dibuje la vista sin recargar.
+        return response()->json(['url' => $url, 'view' => $view->slug])->header('Cache-Control', 'no-store');
     }
 
     /** URL de la pantalla de carga del proyecto con la sesión, si existe. */
@@ -166,7 +167,40 @@ class PublicSiteController extends Controller
             return null;
         }
 
-        return "/sitio/{$project->slug}/{$loading->slug}?s=".urlencode($session);
+        return ViewIntegrator::apiBase()."/sitio/{$project->slug}/{$loading->slug}?s=".urlencode($session);
+    }
+
+    /**
+     * Sirve el integration.js de una vista como archivo público (para agregarlo con
+     * <script src> en la página del cliente, alojada en otro dominio). CORS abierto.
+     */
+    public function embedJs(string $projectSlug, string $viewSlug)
+    {
+        $project = Project::where('slug', $projectSlug)->first();
+        $view = $project ? $project->views()->where('slug', $viewSlug)->first() : null;
+
+        abort_if($view === null, 404);
+
+        return response((string) $view->integration_js, 200, [
+            'Content-Type' => 'application/javascript; charset=utf-8',
+            'Cache-Control' => 'public, max-age=300',
+        ]);
+    }
+
+    /**
+     * Sirve el ÚNICO index.js del proyecto: lleva dentro todas las vistas y las dibuja.
+     * El cliente solo agrega <script src=".../embed/{proyecto}/index.js"> en su página.
+     */
+    public function projectBundle(string $projectSlug, ProjectBundleGenerator $bundle)
+    {
+        $project = Project::where('slug', $projectSlug)->with('views')->first();
+
+        abort_if($project === null, 404);
+
+        return response($bundle->generate($project), 200, [
+            'Content-Type' => 'application/javascript; charset=utf-8',
+            'Cache-Control' => 'no-store',
+        ]);
     }
 
     /** Intenta un nombre legible a partir de campos típicos. */

@@ -23,9 +23,17 @@ Route::get('/', function (Request $request) {
     return redirect()->route('companies.index');
 });
 
-// Servir vistas de proyectos publicados por ruta (siempre disponible, sin DNS).
+// Servir vistas de proyectos por ruta (vista previa).
 Route::get('sitio/{project:slug}/{viewSlug?}', [PublicSiteController::class, 'serve'])
     ->name('sitio.serve');
+
+// Bundle único del proyecto: un solo index.js que dibuja todas las vistas.
+Route::get('embed/{projectSlug}/index.js', [PublicSiteController::class, 'projectBundle'])
+    ->name('embed.bundle');
+
+// Archivo JS embebible de UNA vista (para incrustar un formulario en una página propia).
+Route::get('embed/{projectSlug}/{viewSlug}.js', [PublicSiteController::class, 'embedJs'])
+    ->name('embed.js');
 
 // Login
 Route::middleware('guest')->group(function () {

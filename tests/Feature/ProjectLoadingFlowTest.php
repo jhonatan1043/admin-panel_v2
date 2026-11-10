@@ -78,7 +78,8 @@ class ProjectLoadingFlowTest extends TestCase
 
         $token = $res->json('loading_token');
         $this->assertNotNull($token);
-        $this->assertSame("/sitio/{$project->slug}/cargando?s=".urlencode($token), $res->json('loading_url'));
+        $base = rtrim((string) config('app.url'), '/');
+        $this->assertSame("{$base}/sitio/{$project->slug}/cargando?s=".urlencode($token), $res->json('loading_url'));
     }
 
     public function test_un_segundo_envio_con_la_misma_sesion_no_crea_otro_cliente(): void
@@ -140,7 +141,7 @@ class ProjectLoadingFlowTest extends TestCase
         // Primera consulta: entrega la URL con la sesión.
         $this->getJson("/api/sitio/{$project->slug}/{$token}/next")
             ->assertOk()
-            ->assertJson(['url' => "/sitio/{$project->slug}/{$view->slug}?s=".urlencode($token)]);
+            ->assertJson(['url' => rtrim((string) config('app.url'), '/')."/sitio/{$project->slug}/{$view->slug}?s=".urlencode($token), 'view' => $view->slug]);
 
         // Segunda consulta: ya consumida, no se repite.
         $this->getJson("/api/sitio/{$project->slug}/{$token}/next")
@@ -161,7 +162,7 @@ class ProjectLoadingFlowTest extends TestCase
         // Endpoint por token de sesión (sin proyecto en la URL): identifica al usuario exacto.
         $this->getJson("/api/solicitud/{$token}/next")
             ->assertOk()
-            ->assertJson(['url' => "/sitio/{$project->slug}/{$view->slug}?s=".urlencode($token)]);
+            ->assertJson(['url' => rtrim((string) config('app.url'), '/')."/sitio/{$project->slug}/{$view->slug}?s=".urlencode($token), 'view' => $view->slug]);
 
         // Se consume: la segunda vez ya no la repite.
         $this->getJson("/api/solicitud/{$token}/next")->assertOk()->assertJson(['url' => null]);

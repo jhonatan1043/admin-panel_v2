@@ -47,6 +47,35 @@
     <p class="text-slate-400">Un botón del panel puede abrir esta vista para un cliente; el envío queda ligado a ese mismo cliente por su sesión.</p>
 </x-tip>
 
+@php
+    $apiBase = \App\Services\Projects\ViewIntegrator::apiBase();
+    $embedUrl = $apiBase.'/embed/'.$project->slug.'/'.$view->slug.'.js';
+    $snippet = '<script src="'.$embedUrl.'"></script>';
+@endphp
+@unless ($view->isLoading())
+    <div class="border border-emerald-600/40 bg-emerald-500/5 rounded p-4 mb-4">
+        <h2 class="text-sm font-semibold text-emerald-300 mb-1">Código para tu página</h2>
+        <p class="text-[12px] text-slate-400 mb-2">
+            Agrega esta línea al final de tu página (en tu hosting). El script captura los campos y los envía a la API del panel. No se publica nada aquí: tu página sigue en tu alojamiento.
+        </p>
+        <div class="flex items-center gap-2">
+            <code class="flex-1 bg-black/40 border border-slate-700 rounded px-3 py-2 text-[11px] text-emerald-200 overflow-x-auto whitespace-nowrap">{{ $snippet }}</code>
+            <button type="button" onclick="copiarEmbed(this, @js($snippet))"
+                    class="shrink-0 text-xs border border-sky-600/50 text-sky-300 hover:bg-sky-500/10 px-3 py-2 rounded">Copiar</button>
+            <a href="{{ $embedUrl }}" target="_blank" rel="noopener"
+               class="shrink-0 text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-2 rounded">Ver JS ↗</a>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2">Envía a: <code>{{ $apiBase }}/api/sitio/{{ $project->slug }}/{{ $view->slug }}/submit</code></p>
+    </div>
+    <script>
+        function copiarEmbed(btn, txt) {
+            var ok = function(){ var p=btn.textContent; btn.textContent='¡Copiado!'; setTimeout(function(){btn.textContent=p;},1500); };
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok).catch(function(){ prompt('Copia:', txt); }); }
+            else { var t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{document.execCommand('copy');ok();}catch(e){prompt('Copia:',txt);} document.body.removeChild(t); }
+        }
+    </script>
+@endunless
+
 @if (!empty($analysis['warnings']))
     <div class="text-xs text-amber-200 bg-amber-600/10 border border-amber-600/40 rounded p-3 mb-4">
         <ul class="list-disc list-inside space-y-0.5">

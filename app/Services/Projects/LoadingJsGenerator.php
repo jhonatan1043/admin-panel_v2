@@ -16,6 +16,7 @@ class LoadingJsGenerator
     {
         $cfg = json_encode([
             'interval' => max(1500, (int) ($config['interval'] ?? 4000)),
+            'apiBase' => rtrim((string) ($config['api_base'] ?? ''), '/'),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         return <<<JS
@@ -46,7 +47,7 @@ class LoadingJsGenerator
     var token = sessionToken();
     if (!token) return; // sin sesión no hay a quién consultar
 
-    var endpoint = "/api/solicitud/" + encodeURIComponent(token) + "/next";
+    var endpoint = (CONFIG.apiBase || "") + "/api/solicitud/" + encodeURIComponent(token) + "/next";
     var stopped = false;
 
     // Si la plantilla de carga trae un elemento con [data-loading-status], se le

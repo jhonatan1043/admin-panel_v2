@@ -3,6 +3,7 @@
 namespace App\Services\Projects;
 
 use App\Models\ProjectView;
+use App\Models\Setting;
 
 /**
  * Orquesta el análisis de una vista y la generación de su integración:
@@ -51,17 +52,31 @@ class ViewIntegrator
         $projectSlug = $this->projectSlug($view);
 
         $view->analysis = ['summary' => ['forms' => 0, 'fields' => 0, 'buttons' => 0], 'role' => 'loading'];
-        $view->spec = ['role' => 'loading', 'project' => $projectSlug];
-        $view->integration_js = $this->loadingJsGenerator->generate(['project' => $projectSlug]);
+        $view->spec = ['role' => 'loading', 'project' => $projectSlug, 'api_base' => self::apiBase()];
+        $view->integration_js = $this->loadingJsGenerator->generate([
+            'project' => $projectSlug,
+            'api_base' => self::apiBase(),
+        ]);
         $view->save();
 
         return $view;
     }
 
-    /** Endpoint público al que integration.js envía los datos capturados. */
+    /**
+     * Endpoint ABSOLUTO al que integration.js envía los datos. Es absoluto porque el
+     * JS se ejecuta en páginas alojadas en OTRO dominio (el hosting del cliente).
+     */
     public function endpointFor(ProjectView $view): string
     {
-        return "/api/sitio/{$this->projectSlug($view)}/{$view->slug}/submit";
+        return self::apiBase()."/api/sitio/{$this->projectSlug($view)}/{$view->slug}/submit";
+    }
+
+    /** Dominio público del panel (donde vive la API). Configurable; por defecto APP_URL. */
+    public static function apiBase(): string
+    {
+        $base = Setting::get('public_api_url') ?: config('app.url');
+
+        return rtrim((string) $base, '/');
     }
 
     private function projectSlug(ProjectView $view): ?string

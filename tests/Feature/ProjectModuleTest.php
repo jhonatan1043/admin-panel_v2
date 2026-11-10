@@ -105,12 +105,53 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('<meta name="csrf-token"', $html);
     }
 
-    public function test_no_sirve_la_vista_si_el_proyecto_no_esta_publicado(): void
+    public function test_al_subir_una_pagina_separa_html_css_y_js(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Pagina']);
+        $project = Project::firstWhere('name', 'Pagina');
+
+        $pagina = '<style>.x{color:red}</style><form id="f"><input name="a"><button type="submit">Ir</button></form>'
+            .'<script src="https://cdn/lib.js"></script><script>console.log("mio");</script>';
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Home', 'html' => $pagina,
+        ])->assertRedirect();
+
+        $view = $project->views()->first();
+        $this->assertStringContainsString('.x{color:red}', (string) $view->css);
+        $this->assertStringContainsString('console.log("mio")', (string) $view->js);
+        // El <style> y el <script> en línea se sacaron del HTML; el <script src> queda.
+        $this->assertStringNotContainsString('<style>', (string) $view->html);
+        $this->assertStringNotContainsString('console.log', (string) $view->html);
+        $this->assertStringContainsString('cdn/lib.js', (string) $view->html);
+    }
+
+    public function test_el_bundle_index_js_lleva_todas_las_vistas_y_la_principal(): void
+    {
+        [, $project] = $this->makeIntegratedProject(); // vista "Registrar contacto"
+        $view = $project->views->first();
+
+        $res = $this->get("/embed/{$project->slug}/index.js")->assertOk();
+        $js = $res->getContent();
+
+        $this->assertStringContainsString('application/javascript', $res->headers->get('Content-Type'));
+        // Lleva dentro el HTML de la vista y su slug como principal.
+        $this->assertStringContainsString('formContactos', $js);
+        $this->assertStringContainsString('"primary":"'.$view->slug.'"', str_replace(' ', '', $js));
+        // Y la lógica de dibujo/envío.
+        $this->assertStringContainsString('function render', $js);
+        $this->assertStringContainsString('/api/solicitud/', $js);
+    }
+
+    public function test_entrega_el_js_embebible_publico_de_la_vista(): void
     {
         [, $project] = $this->makeIntegratedProject();
         $view = $project->views->first();
 
-        $this->get(route('sitio.serve', [$project, $view->slug]))->assertNotFound();
+        $res = $this->get("/embed/{$project->slug}/{$view->slug}.js")->assertOk();
+        $this->assertStringContainsString('application/javascript', $res->headers->get('Content-Type'));
+        $this->assertStringContainsString('/api/sitio/'.$project->slug, $res->getContent());
     }
 
     public function test_el_envio_de_datos_registra_un_cliente_reutilizando_el_mecanismo_existente(): void

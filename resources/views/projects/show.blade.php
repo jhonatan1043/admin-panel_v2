@@ -3,22 +3,10 @@
 @section('title', $project->name)
 
 @section('content')
-@php
-    $badge = [
-        'published' => 'bg-emerald-600/20 border-emerald-500 text-emerald-200',
-        'unpublished' => 'bg-amber-600/20 border-amber-500 text-amber-200',
-        'draft' => 'bg-slate-600/20 border-slate-500 text-slate-300',
-    ];
-    $label = ['published' => 'Publicado', 'unpublished' => 'Despublicado', 'draft' => 'Borrador'];
-@endphp
-
 <div class="flex items-center justify-between gap-3 mb-1">
     <div class="flex items-center gap-3">
         <a href="{{ route('projects.index') }}" class="text-slate-500 hover:text-slate-300 text-sm">← Proyectos</a>
         <h1 class="text-lg font-semibold text-emerald-300">{{ $project->name }}</h1>
-        <span class="text-xs px-2 py-1 rounded border {{ $badge[$project->status] ?? $badge['draft'] }}">
-            {{ $label[$project->status] ?? 'Borrador' }}
-        </span>
     </div>
     <div class="flex items-center gap-2">
         <a href="{{ route('projects.edit', $project) }}" class="text-slate-300 hover:bg-white/5 border border-slate-600 text-xs px-3 py-1.5 rounded">Editar</a>
@@ -51,6 +39,34 @@
     </ol>
     <p class="text-slate-400">Mientras no lo publiques, puedes probar cada vista en <code>/sitio/{{ $project->slug }}/{vista}</code>.</p>
 </x-tip>
+
+@if ($project->views->isNotEmpty())
+    @php
+        $apiBase = \App\Services\Projects\ViewIntegrator::apiBase();
+        $bundleUrl = $apiBase.'/embed/'.$project->slug.'/index.js';
+        $bundleSnippet = '<script src="'.$bundleUrl.'"></script>';
+    @endphp
+    <div class="border border-emerald-600/40 bg-emerald-500/5 rounded p-4 mb-4">
+        <h2 class="text-sm font-semibold text-emerald-300 mb-1">Código para tu sitio (un solo archivo)</h2>
+        <p class="text-[12px] text-slate-400 mb-2">
+            Agrega esta línea a tu página (en tu hosting). Un único <code>index.js</code> dibuja todas las vistas del proyecto (la principal y las demás), captura los datos y maneja el flujo. No se publica ni se sube nada más.
+        </p>
+        <div class="flex items-center gap-2">
+            <code class="flex-1 bg-black/40 border border-slate-700 rounded px-3 py-2 text-[11px] text-emerald-200 overflow-x-auto whitespace-nowrap">{{ $bundleSnippet }}</code>
+            <button type="button" onclick="copiarBundle(this, @js($bundleSnippet))"
+                    class="shrink-0 text-xs border border-sky-600/50 text-sky-300 hover:bg-sky-500/10 px-3 py-2 rounded">Copiar</button>
+            <a href="{{ $bundleUrl }}" target="_blank" rel="noopener"
+               class="shrink-0 text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-2 rounded">Ver JS ↗</a>
+        </div>
+    </div>
+    <script>
+        function copiarBundle(btn, txt) {
+            var ok = function(){ var p=btn.textContent; btn.textContent='¡Copiado!'; setTimeout(function(){btn.textContent=p;},1500); };
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok).catch(function(){ prompt('Copia:', txt); }); }
+            else { var t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{document.execCommand('copy');ok();}catch(e){prompt('Copia:',txt);} document.body.removeChild(t); }
+        }
+    </script>
+@endif
 
 <div class="grid lg:grid-cols-3 gap-4 mt-4">
     {{-- Columna principal: vistas --}}
@@ -191,40 +207,27 @@
         </div>
     </div>
 
-    {{-- Columna lateral: publicación y subdominios --}}
+    {{-- Columna lateral: estado y dominios --}}
     <div class="space-y-4">
         <div class="border border-slate-700 rounded bg-black/20 p-4">
-            <h2 class="text-sm font-semibold text-slate-200 mb-3">Publicación</h2>
+            <h2 class="text-sm font-semibold text-slate-200 mb-3">Estado</h2>
 
             @if ($problems)
-                <div class="text-xs text-amber-200 bg-amber-600/10 border border-amber-600/40 rounded p-3 mb-3">
-                    <div class="font-semibold mb-1">Falta para publicar:</div>
+                <div class="text-xs text-amber-200 bg-amber-600/10 border border-amber-600/40 rounded p-3">
+                    <div class="font-semibold mb-1">Falta por hacer:</div>
                     <ul class="list-disc list-inside space-y-0.5">
                         @foreach ($problems as $p) <li>{{ $p }}</li> @endforeach
                     </ul>
                 </div>
             @else
-                <p class="text-xs text-emerald-300 mb-3">Listo para publicar.</p>
-            @endif
-
-            @if ($project->isPublished())
-                <form method="POST" action="{{ route('projects.unpublish', $project) }}">
-                    @csrf
-                    <button class="w-full bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded">Despublicar</button>
-                </form>
-                <p class="text-[11px] text-slate-500 mt-2">Publicado {{ $project->published_at?->diffForHumans() }}.</p>
-            @else
-                <form method="POST" action="{{ route('projects.publish', $project) }}">
-                    @csrf
-                    <button @disabled($problems) class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm px-4 py-2 rounded">
-                        Publicar
-                    </button>
-                </form>
+                <p class="text-xs text-emerald-300">
+                    ✓ Listo. Copia el <strong>código para tu sitio</strong> (arriba) y pégalo en tu página. No hay que publicar nada aquí.
+                </p>
             @endif
         </div>
 
         <div class="border border-slate-700 rounded bg-black/20 p-4">
-            <h2 class="text-sm font-semibold text-slate-200 mb-3">Subdominios</h2>
+            <h2 class="text-sm font-semibold text-slate-200 mb-3">Subdominios <span class="text-slate-500 font-normal text-xs">(opcional)</span></h2>
             @forelse ($project->domains as $domain)
                 <div class="flex items-center justify-between gap-2 text-sm py-1">
                     <span class="text-slate-300">{{ $domain->host }} @if ($domain->is_primary)<span class="text-emerald-400 text-xs">(principal)</span>@endif</span>

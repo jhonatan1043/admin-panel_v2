@@ -21,15 +21,6 @@
     </ol>
 </x-tip>
 
-@php
-    $badge = [
-        'published' => 'bg-emerald-600/20 border-emerald-500 text-emerald-200',
-        'unpublished' => 'bg-amber-600/20 border-amber-500 text-amber-200',
-        'draft' => 'bg-slate-600/20 border-slate-500 text-slate-300',
-    ];
-    $label = ['published' => 'Publicado', 'unpublished' => 'Despublicado', 'draft' => 'Borrador'];
-@endphp
-
 @if ($projects->isEmpty())
     <div class="text-slate-400 text-sm border border-slate-700 rounded p-8 text-center">
         Todavía no hay proyectos. Crea el primero para cargar sus vistas HTML.
@@ -38,45 +29,32 @@
     <div class="grid gap-3">
         @foreach ($projects as $project)
             @php
-                // Enlace público del proyecto: su subdominio si tiene, o la ruta /sitio/{slug}.
-                $publicUrl = $project->domains->isNotEmpty()
-                    ? 'https://'.$project->domains->first()->host
-                    : route('sitio.serve', $project);
+                $bundleSnippet = '<script src="'.\App\Services\Projects\ViewIntegrator::apiBase().'/embed/'.$project->slug.'/index.js"></script>';
             @endphp
             <div class="border border-slate-700 hover:border-emerald-500/60 rounded p-4 bg-black/20 transition">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <a href="{{ route('projects.show', $project) }}"
-                           class="font-semibold text-slate-100 hover:text-emerald-300">{{ $project->name }}</a>
-                        <div class="text-xs text-slate-400 mt-0.5">
-                            {{ $project->views_count }} vista(s)
-                            @if ($project->operator)
-                                · <span class="text-sky-300">{{ $project->operator->name }}</span>
-                            @else
-                                · <span class="text-slate-500">sin asignar</span>
-                            @endif
-                            @if ($project->domains->isNotEmpty())
-                                · {{ $project->domains->pluck('host')->implode(', ') }}
-                            @endif
-                            · actualizado {{ $project->updated_at?->diffForHumans() }}
-                        </div>
+                <div class="min-w-0">
+                    <a href="{{ route('projects.show', $project) }}"
+                       class="font-semibold text-slate-100 hover:text-emerald-300">{{ $project->name }}</a>
+                    <div class="text-xs text-slate-400 mt-0.5">
+                        {{ $project->views_count }} vista(s)
+                        @if ($project->operator)
+                            · <span class="text-sky-300">{{ $project->operator->name }}</span>
+                        @else
+                            · <span class="text-slate-500">sin asignar</span>
+                        @endif
+                        · actualizado {{ $project->updated_at?->diffForHumans() }}
                     </div>
-                    <span class="shrink-0 text-xs px-2 py-1 rounded border {{ $badge[$project->status] ?? $badge['draft'] }}">
-                        {{ $label[$project->status] ?? 'Borrador' }}
-                    </span>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 mt-3">
                     <a href="{{ route('projects.show', $project) }}"
                        class="text-xs border border-slate-600 text-slate-300 hover:bg-white/5 px-3 py-1.5 rounded">Administrar</a>
-                    @if ($project->isPublished())
-                        <a href="{{ $publicUrl }}" target="_blank" rel="noopener"
-                           class="text-xs border border-emerald-600/50 text-emerald-300 hover:bg-emerald-500/10 px-3 py-1.5 rounded">Abrir sitio ↗</a>
-                        <button type="button" onclick="copiarLink(this, @js($publicUrl))"
-                                class="text-xs border border-sky-600/50 text-sky-300 hover:bg-sky-500/10 px-3 py-1.5 rounded">Copiar link</button>
-                        <span class="text-[11px] text-slate-500 truncate">{{ $publicUrl }}</span>
+                    @if ($project->views_count > 0)
+                        <button type="button" onclick="copiarLink(this, @js($bundleSnippet))"
+                                class="text-xs border border-sky-600/50 text-sky-300 hover:bg-sky-500/10 px-3 py-1.5 rounded">Copiar código</button>
+                        <span class="text-[11px] text-slate-500 truncate">{{ $bundleSnippet }}</span>
                     @else
-                        <span class="text-[11px] text-slate-500">Publica el proyecto para obtener su enlace público.</span>
+                        <span class="text-[11px] text-slate-500">Agrega una vista para obtener el código.</span>
                     @endif
                 </div>
             </div>
