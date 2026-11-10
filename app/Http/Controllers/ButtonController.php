@@ -12,11 +12,14 @@ class ButtonController extends Controller
     {
         $buttons = Button::catalog();
 
-        // Vistas de proyectos publicados, para que un botón pueda abrir una de ellas.
+        // Vistas de proyectos (todo es dinámico; ya no hay "publicación"), para que
+        // un botón pueda abrir una de ellas. Se excluyen las vistas de carga.
         $projectViews = ProjectView::with('project')
-            ->whereHas('project', fn ($q) => $q->where('status', \App\Models\Project::STATUS_PUBLISHED))
+            ->where('role', '!=', ProjectView::ROLE_LOADING)
+            ->whereHas('project')
             ->get()
-            ->groupBy(fn (ProjectView $v) => $v->project->name);
+            ->sortBy(fn (ProjectView $v) => optional($v->project)->name)
+            ->groupBy(fn (ProjectView $v) => optional($v->project)->name);
 
         return view('buttons.index', compact('buttons', 'projectViews'));
     }

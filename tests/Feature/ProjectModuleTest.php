@@ -247,10 +247,10 @@ class ProjectModuleTest extends TestCase
         $this->assertTrue($button->projectView->is($view));
     }
 
-    public function test_la_pantalla_de_botones_lista_las_vistas_publicadas(): void
+    public function test_la_pantalla_de_botones_lista_las_vistas_del_proyecto_sin_publicar(): void
     {
+        // Todo es dinámico: ya no hay publicación. Las vistas deben listarse igual.
         [$admin, $project] = $this->makeIntegratedProject();
-        $this->actingAs($admin)->post(route('projects.publish', $project));
 
         $html = $this->actingAs($admin)->get(route('buttons.index'))->assertOk()->getContent();
 
