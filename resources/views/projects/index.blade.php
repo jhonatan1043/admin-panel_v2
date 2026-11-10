@@ -29,7 +29,7 @@
     <div class="grid gap-3">
         @foreach ($projects as $project)
             @php
-                $bundleSnippet = '<script src="'.\App\Services\Projects\ViewIntegrator::apiBase().'/embed/'.$project->slug.'/index.js"></script>';
+                $bundleSnippet = '<script src="'.\App\Services\Projects\ViewIntegrator::apiBase().'/embed/'.$project->slug.'/bundle"></script>';
             @endphp
             <div class="border border-slate-700 hover:border-emerald-500/60 rounded p-4 bg-black/20 transition">
                 <div class="min-w-0">

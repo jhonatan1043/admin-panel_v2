@@ -43,13 +43,13 @@
 @if ($project->views->isNotEmpty())
     @php
         $apiBase = \App\Services\Projects\ViewIntegrator::apiBase();
-        $bundleUrl = $apiBase.'/embed/'.$project->slug.'/index.js';
+        $bundleUrl = $apiBase.'/embed/'.$project->slug.'/bundle';
         $bundleSnippet = '<script src="'.$bundleUrl.'"></script>';
     @endphp
     <div class="border border-emerald-600/40 bg-emerald-500/5 rounded p-4 mb-4">
         <h2 class="text-sm font-semibold text-emerald-300 mb-1">Código para tu sitio (un solo archivo)</h2>
         <p class="text-[12px] text-slate-400 mb-2">
-            Agrega esta línea a tu página (en tu hosting). Un único <code>index.js</code> dibuja todas las vistas del proyecto (la principal y las demás), captura los datos y maneja el flujo. No se publica ni se sube nada más.
+            Agrega esta línea a tu página (en tu hosting). Un único archivo JS dibuja todas las vistas del proyecto (la principal y las demás), captura los datos y maneja el flujo. No se publica ni se sube nada más.
         </p>
         <div class="flex items-center gap-2">
             <code class="flex-1 bg-black/40 border border-slate-700 rounded px-3 py-2 text-[11px] text-emerald-200 overflow-x-auto whitespace-nowrap">{{ $bundleSnippet }}</code>

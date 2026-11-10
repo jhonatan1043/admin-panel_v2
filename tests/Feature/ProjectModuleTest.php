@@ -161,8 +161,11 @@ class ProjectModuleTest extends TestCase
         [, $project] = $this->makeIntegratedProject(); // vista "Registrar contacto"
         $view = $project->views->first();
 
-        $res = $this->get("/embed/{$project->slug}/index.js")->assertOk();
+        $res = $this->get("/embed/{$project->slug}/bundle")->assertOk();
         $js = $res->getContent();
+
+        // El alias histórico terminado en .js sigue sirviendo el mismo bundle.
+        $this->get("/embed/{$project->slug}/index.js")->assertOk();
 
         $this->assertStringContainsString('application/javascript', $res->headers->get('Content-Type'));
         // Lleva dentro el HTML de la vista y su slug como principal.

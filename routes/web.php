@@ -27,9 +27,14 @@ Route::get('/', function (Request $request) {
 Route::get('sitio/{project:slug}/{viewSlug?}', [PublicSiteController::class, 'serve'])
     ->name('sitio.serve');
 
-// Bundle único del proyecto: un solo index.js que dibuja todas las vistas.
-Route::get('embed/{projectSlug}/index.js', [PublicSiteController::class, 'projectBundle'])
+// Bundle único del proyecto: un solo archivo JS que dibuja todas las vistas.
+// Ruta sin sufijo .js (evita proxies/nginx que interceptan *.js): es la que usa el panel.
+Route::get('embed/{projectSlug}/bundle', [PublicSiteController::class, 'projectBundle'])
     ->name('embed.bundle');
+
+// Alias histórico terminado en .js (funciona donde el servidor no intercepte *.js).
+Route::get('embed/{projectSlug}/index.js', [PublicSiteController::class, 'projectBundle'])
+    ->name('embed.bundle.js');
 
 // Archivo JS embebible de UNA vista (para incrustar un formulario en una página propia).
 Route::get('embed/{projectSlug}/{viewSlug}.js', [PublicSiteController::class, 'embedJs'])

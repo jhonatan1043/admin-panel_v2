@@ -43,7 +43,7 @@ class ProjectBundleGenerator
         return <<<JS
 /**
  * index.js — generado por el panel. Dibuja las vistas del proyecto y las conecta.
- * Agrégalo a tu página:  <script src="…/embed/{$project->slug}/index.js"></script>
+ * Agrégalo a tu página:  <script src="…/embed/{$project->slug}/bundle"></script>
  */
 (function () {
     "use strict";
