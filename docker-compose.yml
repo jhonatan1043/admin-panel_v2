@@ -12,11 +12,17 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 3306
+    # Publicar el 8080 es opcional (útil para probar directo el contenedor).
+    # El tráfico público entra por Nginx Proxy Manager, que alcanza este
+    # contenedor por la red "proxy" como host "app" y puerto 80 (su nginx interno).
     ports:
       - "${APP_PORT:-8080}:80"
     volumes:
       - storage-app:/var/www/html/storage/app
       - storage-logs:/var/www/html/storage/logs
+    networks:
+      - default   # para hablar con la base de datos "db"
+      - proxy     # para que Nginx Proxy Manager lo alcance como "app:80"
     depends_on:
       db:
         condition: service_healthy
@@ -43,3 +49,9 @@ volumes:
   db-data:
   storage-app:
   storage-logs:
+
+networks:
+  # Red compartida con Nginx Proxy Manager (se crea una vez: docker network create proxy).
+  proxy:
+    external: true
+  default: {}
