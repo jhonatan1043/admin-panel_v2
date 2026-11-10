@@ -85,6 +85,16 @@ class HtmlAnalyzer
         if ($forms === [] && $standaloneFields === [] && $standaloneButtons === []) {
             $warnings[] = 'No se detectaron formularios, campos ni botones en la vista.';
         }
+        // Si hay inputs de datos pero ninguno se pudo detectar (sin name/id), avisar.
+        $dataInputs = $xpath->query('//input[not(@type="submit" or @type="button" or @type="reset" or @type="image")]|//textarea|//select')->length;
+        $detected = count($standaloneFields);
+        foreach ($forms as $f) {
+            $detected += count($f['fields']);
+        }
+        if ($dataInputs > 0 && $detected === 0) {
+            $warnings[] = 'No se detectaron campos para enviar. Revisa que los campos tengan atributo "name" o "id" (las cajas de un código deben usar maxlength="1").';
+        }
+
         if ($standaloneFields !== [] && $standaloneButtons === []) {
             $warnings[] = 'Hay campos sueltos sin un botón de envío asociado; podrás elegir el disparador manualmente.';
         }
@@ -130,7 +140,7 @@ class HtmlAnalyzer
             }
         }
         // Agrupa cajas de un mismo código (OTP) en un solo campo concatenado.
-        $fields = $this->groupCodeFields($fields);
+        $fields = $this->groupCodeFields($fields, $this->nodeSelector($form, 'form'));
 
         $submit = null;
         foreach ($this->buttonNodes($xpath, $form) as $node) {
@@ -172,14 +182,35 @@ class HtmlAnalyzer
 
         $name = $this->attr($node, 'name');
         $id = $this->attr($node, 'id');
+        $maxlength = $this->attr($node, 'maxlength');
+        $class = $this->attr($node, 'class');
 
         // Clave con la que viajará el dato: name tiene prioridad; si no, el id.
         $key = $name !== null && $name !== '' ? $name : $id;
-        if (($key === null || $key === '') && $type !== 'hidden') {
-            // Sin name ni id no hay forma estable de capturarlo; se avisa pero se omite.
-            return null;
-        }
+
         if ($key === null || $key === '') {
+            // Sin name ni id: se conservan las cajas de código (un carácter o con clase)
+            // para agruparlas por su clase o por su posición; el resto no se puede capturar.
+            if ($type !== 'hidden' && ($maxlength === '1' || ($class !== null && $class !== ''))) {
+                return [
+                    'tag' => $tag,
+                    'type' => $type,
+                    'name' => null,
+                    'id' => null,
+                    'key' => null,
+                    'required' => $node->hasAttribute('required'),
+                    'hidden' => false,
+                    'maxlength' => '1',
+                    'class' => $class,
+                    'placeholder' => $this->attr($node, 'placeholder'),
+                    'selector' => null,
+                    'anon_code' => true,
+                    'include' => true,
+                    'send_as' => null,
+                    'group' => false,
+                ];
+            }
+
             return null;
         }
 
@@ -191,12 +222,14 @@ class HtmlAnalyzer
             'key' => $key,
             'required' => $node->hasAttribute('required'),
             'hidden' => $type === 'hidden',
-            'maxlength' => $this->attr($node, 'maxlength'),
+            'maxlength' => $maxlength,
+            'class' => $class,
             'placeholder' => $this->attr($node, 'placeholder'),
             'selector' => $this->fieldSelector($node, $name, $id),
             // Config por defecto (la UI puede ajustarla): se envía y conserva su clave.
             'include' => true,
             'send_as' => $key,
+            'anon_code' => false,
             'group' => false,
         ];
     }
@@ -208,10 +241,16 @@ class HtmlAnalyzer
      *  - varias cajas de un carácter (maxlength="1").
      *
      * @param  array  $fields  Campos ya detectados en este ámbito (formulario o sueltos).
+     * @param  string  $scopeSelector  Selector del formulario contenedor (o '' si son sueltos).
      */
-    private function groupCodeFields(array $fields): array
+    private function groupCodeFields(array $fields, string $scopeSelector = ''): array
     {
         if (count($fields) < 2) {
+            // Una sola caja anónima no se puede capturar por sí misma: se descarta.
+            if (count($fields) === 1 && ! empty($fields[0]['anon_code'])) {
+                return [];
+            }
+
             return $fields;
         }
 
@@ -255,35 +294,45 @@ class HtmlAnalyzer
         }
 
         foreach ($members as $key => $groupFields) {
-            // Un solo miembro no forma grupo: se deja como campo normal.
-            $result[$order[$key]] = count($groupFields) < 2
-                ? $groupFields[0]
-                : $this->collapseGroup($groupFields);
+            if (count($groupFields) < 2) {
+                // Un solo miembro no forma grupo. Si es una caja anónima, se descarta.
+                $result[$order[$key]] = ! empty($groupFields[0]['anon_code']) ? null : $groupFields[0];
+
+                continue;
+            }
+            $result[$order[$key]] = $this->collapseGroup($groupFields, $scopeSelector);
         }
 
         return array_values(array_filter($result, fn ($x) => $x !== null));
     }
 
-    private function collapseGroup(array $members): array
+    private function collapseGroup(array $members, string $scopeSelector): array
     {
         $first = $members[0];
 
         $names = array_map(fn ($m) => $m['name'] ?? null, $members);
-        $allSameName = $first['name'] && count(array_unique($names)) === 1;
+        $allSameName = ($first['name'] ?? null) && count(array_unique($names)) === 1;
 
         if ($allSameName) {
             $sendAs = $first['name'];
-        } else {
+        } elseif (! empty($first['key'])) {
             // Clave a partir de la primera caja, quitando el número final (otp1 -> otp).
             $sendAs = preg_replace('/[\s_\-]*\d+$/', '', (string) $first['key']);
             if (strlen((string) $sendAs) < 2) {
                 $sendAs = 'codigo';
             }
+        } else {
+            $sendAs = 'codigo'; // cajas anónimas
         }
 
-        // Selectores de las cajas. Si todas comparten selector (mismo name), uno solo
-        // los agarra a todas; si no, se listan los individuales (por id o name).
-        $selectors = array_values(array_unique(array_map(fn ($m) => $m['selector'], $members)));
+        // Selectores de las cajas. Si todas tienen selector propio (name/id) se usan;
+        // si alguna es anónima, se arma uno de grupo por clase común o por el formulario.
+        $memberSelectors = array_values(array_filter(array_map(fn ($m) => $m['selector'] ?? null, $members)));
+        if (count($memberSelectors) === count($members)) {
+            $selectors = array_values(array_unique($memberSelectors));
+        } else {
+            $selectors = [$this->groupSelectorFor($members, $scopeSelector)];
+        }
 
         return [
             'tag' => $first['tag'],
@@ -302,6 +351,32 @@ class HtmlAnalyzer
             'include' => true,
             'send_as' => $sendAs,
         ];
+    }
+
+    /** Selector que abarca todas las cajas anónimas: su clase común o, si no, el formulario. */
+    private function groupSelectorFor(array $members, string $scopeSelector): string
+    {
+        // Clase presente en TODAS las cajas.
+        $classSets = array_map(function ($m) {
+            $tokens = preg_split('/\s+/', trim((string) ($m['class'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+
+            return $tokens ?: [];
+        }, $members);
+
+        $common = array_shift($classSets) ?: [];
+        foreach ($classSets as $set) {
+            $common = array_intersect($common, $set);
+        }
+        $common = array_values($common);
+
+        if ($common !== []) {
+            return '.'.$this->escape($common[0]);
+        }
+
+        // Sin clase común: las cajas de un carácter dentro del formulario (o de toda la vista).
+        $prefix = $scopeSelector !== '' ? $scopeSelector.' ' : '';
+
+        return $prefix.'input[maxlength="1"]';
     }
 
     private function describeButton(DOMElement $node): array

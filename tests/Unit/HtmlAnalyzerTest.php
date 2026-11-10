@@ -175,6 +175,46 @@ class HtmlAnalyzerTest extends TestCase
     }
 
     #[Test]
+    public function agrupa_cajas_de_codigo_anonimas_por_su_clase(): void
+    {
+        $boxes = str_repeat('<input type="text" maxlength="1" class="box">', 6);
+        $html = "<form id=\"otp\">{$boxes}<button type=\"submit\">Ir</button></form>";
+
+        $result = $this->analyze($html);
+        $fields = $result['forms'][0]['fields'];
+
+        // Las 6 cajas sin name/id se agrupan en un solo campo capturado por su clase.
+        $this->assertCount(1, $fields);
+        $this->assertTrue($fields[0]['group']);
+        $this->assertSame('codigo', $fields[0]['send_as']);
+        $this->assertSame(['.box'], $fields[0]['selectors']);
+    }
+
+    #[Test]
+    public function agrupa_cajas_anonimas_sin_clase_por_el_formulario(): void
+    {
+        $boxes = str_repeat('<input type="text" maxlength="1">', 4);
+        $html = "<form id=\"otp\">{$boxes}<button type=\"submit\">Ir</button></form>";
+
+        $fields = $this->analyze($html)['forms'][0]['fields'];
+
+        $this->assertCount(1, $fields);
+        $this->assertSame(['#otp input[maxlength="1"]'], $fields[0]['selectors']);
+    }
+
+    #[Test]
+    public function avisa_cuando_los_campos_no_tienen_name_ni_id(): void
+    {
+        // Inputs normales (no cajas de 1 carácter) sin name ni id: no se pueden capturar.
+        $html = '<form id="f"><input type="text"><input type="email"><button type="submit">Ir</button></form>';
+
+        $result = $this->analyze($html);
+
+        $this->assertSame([], $result['forms'][0]['fields']);
+        $this->assertTrue(collect($result['warnings'])->contains(fn ($w) => str_contains($w, 'name')));
+    }
+
+    #[Test]
     public function un_formulario_normal_no_se_agrupa(): void
     {
         $html = '<form id="f"><input type="text" name="nombre"><input type="email" name="correo"><button type="submit">Ok</button></form>';
