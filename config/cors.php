@@ -13,7 +13,8 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'embed/*'],
+    // Libre para cualquier origen en TODAS las rutas.
+    'paths' => ['*'],
 
     'allowed_methods' => ['*'],
 
