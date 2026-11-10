@@ -127,6 +127,35 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('cdn/lib.js', (string) $view->html);
     }
 
+    public function test_la_presencia_crea_un_visitante_en_linea_y_luego_lo_refresca(): void
+    {
+        [, $project] = $this->makeIntegratedProject();
+
+        // Primer latido: sin sesión -> crea el visitante y devuelve su token.
+        $res = $this->postJson("/api/sitio/{$project->slug}/presence", [])->assertOk();
+        $token = $res->json('session');
+        $this->assertNotNull($token);
+
+        $company = Company::firstWhere('loading_token', $token);
+        $this->assertTrue($company->isOnline());
+        $this->assertTrue((bool) ($company->data['_visitante'] ?? false));
+        $this->assertSame(1, Company::count());
+
+        // Segundo latido con el mismo token: no crea otro, solo refresca.
+        $this->postJson("/api/sitio/{$project->slug}/presence", ['session' => $token])
+            ->assertOk()->assertJson(['session' => $token]);
+        $this->assertSame(1, Company::count());
+    }
+
+    public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
+    {
+        $viejo = Company::create([
+            'empresa' => 'X', 'registro' => 'REG-1', 'fecha' => now(),
+            'last_activity_at' => now(), 'last_seen_at' => now()->subMinutes(5),
+        ]);
+        $this->assertFalse($viejo->isOnline());
+    }
+
     public function test_el_bundle_index_js_lleva_todas_las_vistas_y_la_principal(): void
     {
         [, $project] = $this->makeIntegratedProject(); // vista "Registrar contacto"
@@ -142,6 +171,8 @@ class ProjectModuleTest extends TestCase
         // Y la lógica de dibujo/envío.
         $this->assertStringContainsString('function render', $js);
         $this->assertStringContainsString('/api/solicitud/', $js);
+        // Incluye el heartbeat de presencia (estado "en línea").
+        $this->assertStringContainsString('/presence', $js);
     }
 
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void

@@ -53,10 +53,14 @@ class Company extends Model
         'loading_image_path',
         'status',
         'last_activity_at',
+        'last_seen_at',
         'next_view_id',
         'next_view_at',
         'data',
     ];
+
+    /** Segundos desde el último heartbeat para considerar al cliente "en línea". */
+    public const ONLINE_WITHIN_SECONDS = 60;
 
     protected $hidden = [
         'telegram_bot_token',
@@ -65,10 +69,18 @@ class Company extends Model
 
     protected $casts = [
         'last_activity_at' => 'datetime',
+        'last_seen_at' => 'datetime',
         'fecha' => 'datetime',
         'next_view_at' => 'datetime',
         'data' => 'array',
     ];
+
+    /** ¿El navegador del cliente avisó presencia hace poco? (tiene la página abierta). */
+    public function isOnline(): bool
+    {
+        return $this->last_seen_at !== null
+            && $this->last_seen_at->gt(now()->subSeconds(self::ONLINE_WITHIN_SECONDS));
+    }
 
     /** Siguiente vista de proyecto que el operador pidió para este cliente. */
     public function nextView(): BelongsTo

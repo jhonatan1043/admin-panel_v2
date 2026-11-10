@@ -125,6 +125,48 @@ class PublicSiteController extends Controller
     }
 
     /**
+     * Presencia (heartbeat): el navegador del cliente avisa que tiene la página
+     * abierta. Si no hay sesión aún, crea el cliente (visitante) y devuelve su token;
+     * si ya existe, solo refresca su "visto por última vez" para marcarlo en línea.
+     */
+    public function presence(Request $request, string $projectSlug): JsonResponse
+    {
+        $project = Project::where('slug', $projectSlug)->first();
+        abort_if($project === null, 404);
+
+        $data = $request->validate(['session' => ['nullable', 'uuid']]);
+
+        $company = ! empty($data['session'])
+            ? Company::where('loading_token', $data['session'])->first()
+            : null;
+
+        if ($company) {
+            // Actualización directa (sin eventos) para no invalidar cachés en cada latido.
+            Company::whereKey($company->id)->update(['last_seen_at' => now()]);
+
+            return response()->json(['ok' => true, 'session' => $company->loading_token])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        // Visitante nuevo: aparece en el tablero apenas abre la página.
+        $company = new Company([
+            'empresa' => $project->name,
+            'fecha' => now(),
+            'data' => ['_proyecto' => $project->slug, '_visitante' => true],
+        ]);
+        $company->forceFill([
+            'loading_token' => (string) Str::uuid(),
+            'last_activity_at' => now(),
+            'last_seen_at' => now(),
+        ])->save();
+        $company->registro = 'REG-'.str_pad((string) $company->id, 4, '0', STR_PAD_LEFT);
+        $company->save();
+
+        return response()->json(['ok' => true, 'session' => $company->loading_token])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /**
      * Sondeo por token de sesión del navegador (independiente del proyecto):
      * ¿el operador ya pidió la siguiente vista para ESTE usuario exacto?
      */

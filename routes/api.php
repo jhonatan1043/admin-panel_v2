@@ -34,6 +34,11 @@ Route::post('sitio/{projectSlug}/{viewSlug}/submit', [\App\Http\Controllers\Publ
     ->middleware('throttle:30,1')
     ->name('api.sitio.submit');
 
+// Presencia (heartbeat): marca al cliente "en línea" mientras tiene la página abierta.
+Route::post('sitio/{projectSlug}/presence', [\App\Http\Controllers\PublicSiteController::class, 'presence'])
+    ->middleware('throttle:120,1')
+    ->name('api.sitio.presence');
+
 // Sondeo de la pantalla de carga: ¿el operador ya pidió la siguiente vista?
 Route::get('sitio/{projectSlug}/{session}/next', [\App\Http\Controllers\PublicSiteController::class, 'next'])
     ->middleware('throttle:120,1')

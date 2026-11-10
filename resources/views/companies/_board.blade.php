@@ -14,8 +14,13 @@
      data-signal="{{ $arrivalSignal ?? '' }}"
      data-sound="{{ ($soundEnabled ?? true) ? '1' : '0' }}"></div>
 
+@php $online = $companies->filter->isOnline()->count(); @endphp
 <div class="flex flex-wrap items-center gap-3 mb-5 text-xs">
     <span class="text-slate-400">Clientes:</span>
+    <span class="rounded border border-emerald-400/60 bg-emerald-500/10 text-emerald-200 px-2 py-1 flex items-center gap-1.5"
+          title="Con la página abierta ahora">
+        <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En vivo: {{ $online }}
+    </span>
     <span class="rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 px-2 py-1">
         En línea: {{ $counts['active'] ?? 0 }}
     </span>

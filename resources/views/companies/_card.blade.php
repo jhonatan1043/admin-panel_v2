@@ -9,6 +9,11 @@
         <span class="inline-block h-2.5 w-2.5 rounded-full"
               style="background: {{ $s['dot'] }}; box-shadow: 0 0 10px 2px {{ $s['ring'] }};"></span>
         <span class="text-[10px] tracking-widest {{ $s['text'] }}">{{ $s['label'] }}</span>
+        @if ($company->isOnline())
+            <span class="flex items-center gap-1 text-[9px] text-emerald-300" title="Tiene la página abierta ahora">
+                <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> en línea
+            </span>
+        @endif
         @if ($company->empresa)
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
                   title="Proyecto / empresa de origen">{{ $company->empresa }}</span>

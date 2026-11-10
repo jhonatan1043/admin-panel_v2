@@ -63,6 +63,24 @@ class ProjectBundleGenerator
     }
     function remember(t) { try { if (t) { localStorage.setItem("ew_sess", t); sessionStorage.setItem("sessionToken", t); } } catch (e) {} }
 
+    // ---------- presencia (estado "en línea" mientras la página está abierta) ----------
+    function presence() {
+        if (document.hidden) return; // solo si la pestaña está visible
+        fetch(CONFIG.api + "/api/sitio/" + encodeURIComponent(CONFIG.project) + "/presence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ session: sessionToken() })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (b) { if (b && b.session) remember(b.session); })
+            .catch(function () {});
+    }
+    function startPresence() {
+        presence();
+        setInterval(presence, 20000);
+        document.addEventListener("visibilitychange", function () { if (!document.hidden) presence(); });
+    }
+
     // ---------- montaje ----------
     function mount() {
         var m = document.getElementById("ew-app");
@@ -187,7 +205,10 @@ class ProjectBundleGenerator
     function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
     // ---------- init ----------
-    function init() { render(CONFIG.primary || Object.keys(CONFIG.views)[0]); }
+    function init() {
+        startPresence(); // marca "en línea" apenas abre la página
+        render(CONFIG.primary || Object.keys(CONFIG.views)[0]);
+    }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
     else init();
 })();
