@@ -279,6 +279,26 @@ class HtmlAnalyzerTest extends TestCase
     }
 
     #[Test]
+    public function advierte_si_hay_rutas_relativas_en_imagenes_o_assets(): void
+    {
+        $html = '<form id="f"><img src="img/logo.png"><input name="x"><button type="submit">Ok</button></form>';
+
+        $warnings = (new HtmlAnalyzer)->analyze($html)['warnings'];
+
+        $this->assertTrue(collect($warnings)->contains(fn ($w) => str_contains($w, 'rutas relativas')));
+    }
+
+    #[Test]
+    public function no_advierte_rutas_relativas_si_los_assets_son_absolutos(): void
+    {
+        $html = '<form id="f"><img src="https://cdn.ejemplo.com/logo.png"><link href="https://cdn.ejemplo.com/a.css" rel="stylesheet"><input name="x"><button type="submit">Ok</button></form>';
+
+        $warnings = (new HtmlAnalyzer)->analyze($html)['warnings'];
+
+        $this->assertFalse(collect($warnings)->contains(fn ($w) => str_contains($w, 'rutas relativas')));
+    }
+
+    #[Test]
     public function conserva_acentos_y_utf8(): void
     {
         $html = '<form id="f"><input type="text" name="nombre" placeholder="Añadir nombre"><button type="submit">Guardár</button></form>';

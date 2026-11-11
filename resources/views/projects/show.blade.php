@@ -124,23 +124,38 @@
                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
                            placeholder="Registrar contacto">
                 </div>
-                <div class="grid sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">HTML (archivo)</label>
-                        <input type="file" name="html_file" accept=".html,.htm,text/html"
-                               class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">CSS (archivo)</label>
-                        <input type="file" name="css_file" accept=".css"
-                               class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-600 file:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">JS (archivo)</label>
-                        <input type="file" name="js_file" accept=".js"
-                               class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-600 file:text-white">
-                    </div>
+                <div class="rounded border border-emerald-600/40 bg-emerald-500/5 p-3">
+                    <label class="block text-xs font-semibold text-emerald-300 mb-1">Todos los archivos de la vista (recomendado)</label>
+                    <input type="file" name="files[]" multiple
+                           accept=".html,.htm,.css,.js,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.bmp,.avif,text/html,image/*"
+                           class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white">
+                    <p class="text-[11px] text-slate-400 mt-1">
+                        Suelta aquí el HTML, varios CSS/JS e imágenes de una vez. Los CSS/JS se unen en orden
+                        por nombre y las <strong>imágenes quedan incrustadas</strong> (data: base64) dentro del
+                        código: todo queda en la base, sin subir archivos a ningún hosting.
+                    </p>
                 </div>
+
+                <details class="text-xs text-slate-400">
+                    <summary class="cursor-pointer hover:text-slate-200">…o subir un archivo por tipo</summary>
+                    <div class="grid sm:grid-cols-3 gap-3 mt-2">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">HTML (archivo)</label>
+                            <input type="file" name="html_file" accept=".html,.htm,text/html"
+                                   class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">CSS (archivo)</label>
+                            <input type="file" name="css_file" accept=".css"
+                                   class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-600 file:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">JS (archivo)</label>
+                            <input type="file" name="js_file" accept=".js"
+                                   class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-600 file:text-white">
+                        </div>
+                    </div>
+                </details>
                 <details class="text-xs text-slate-400">
                     <summary class="cursor-pointer hover:text-slate-200">…o pegar el código directamente</summary>
                     <div class="mt-2 space-y-2">

@@ -503,7 +503,44 @@ class HtmlAnalyzer
             $warnings[] = 'La vista hace llamadas de red propias (fetch/ajax). Si son para enviar el formulario, quítalas: el panel ya envía los datos a su endpoint.';
         }
 
+        if ($this->hasRelativeAssets($html)) {
+            $warnings[] = 'La vista usa rutas relativas para imágenes, hojas de estilo o scripts (por ejemplo src="img/logo.png"). Como el código se incrusta en la página del cliente, esas rutas no cargarán. Usa URLs absolutas (https://…) o imágenes en formato data: base64.';
+        }
+
         return $warnings;
+    }
+
+    /** ¿Hay imágenes, <link> o <script src> con rutas relativas (que no cargarán embebidos)? */
+    private function hasRelativeAssets(string $html): bool
+    {
+        if (preg_match_all('/<(?:img|script)\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']/i', $html, $m)) {
+            foreach ($m[1] as $u) {
+                if ($this->isRelativeAsset($u)) {
+                    return true;
+                }
+            }
+        }
+        if (preg_match_all('/<link\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', $html, $m)) {
+            foreach ($m[1] as $u) {
+                if ($this->isRelativeAsset($u)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function isRelativeAsset(string $url): bool
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return false;
+        }
+
+        return ! preg_match('#^(https?:)?//#i', $url)
+            && ! str_starts_with($url, 'data:')
+            && ! str_starts_with($url, '#');
     }
 
     private function empty(array $warnings): array

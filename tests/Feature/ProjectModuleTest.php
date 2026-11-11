@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class ProjectModuleTest extends TestCase
@@ -171,11 +172,46 @@ class ProjectModuleTest extends TestCase
         // Lleva dentro el HTML de la vista y su slug como principal.
         $this->assertStringContainsString('formContactos', $js);
         $this->assertStringContainsString('"primary":"'.$view->slug.'"', str_replace(' ', '', $js));
-        // Y la lógica de dibujo/envío.
+        // Y la lógica de dibujo/envío (incluida la ejecución de <script> embebidos).
         $this->assertStringContainsString('function render', $js);
+        $this->assertStringContainsString('runScripts', $js);
         $this->assertStringContainsString('/api/solicitud/', $js);
         // Incluye el heartbeat de presencia (estado "en línea").
         $this->assertStringContainsString('/presence', $js);
+    }
+
+    public function test_sube_varios_archivos_incrusta_imagenes_y_une_los_js(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Multi Archivos'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Multi Archivos');
+
+        $html = '<!doctype html><html><body><img src="img/logo.png"><form id="f"><input name="a"><button type="submit">Ir</button></form></body></html>';
+        $css = '.bg{background:url("fondo.jpg")}';
+        // 1 byte de imagen de prueba (el contenido no importa para el test).
+        $logo = UploadedFile::fake()->createWithContent('logo.png', 'PNGDATA');
+        $fondo = UploadedFile::fake()->createWithContent('fondo.jpg', 'JPGDATA');
+        $js1 = UploadedFile::fake()->createWithContent('1-base.js', 'window.A=1;');
+        $js2 = UploadedFile::fake()->createWithContent('2-extra.js', 'window.B=2;');
+        $htmlFile = UploadedFile::fake()->createWithContent('index.html', $html);
+        $cssFile = UploadedFile::fake()->createWithContent('estilos.css', $css);
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Login',
+            'files' => [$htmlFile, $cssFile, $js1, $js2, $logo, $fondo],
+        ])->assertRedirect();
+
+        $view = $project->fresh('views')->views->first();
+
+        // La imagen quedó incrustada como data: (no como ruta relativa).
+        $this->assertStringContainsString('data:image/png;base64,', $view->html);
+        $this->assertStringNotContainsString('img/logo.png', $view->html);
+        // El CSS también incrusta su imagen.
+        $this->assertStringContainsString('data:image/jpeg;base64,', $view->css);
+        // Los dos JS quedaron unidos, en orden por nombre.
+        $this->assertStringContainsString('window.A=1;', $view->js);
+        $this->assertStringContainsString('window.B=2;', $view->js);
+        $this->assertLessThan(strpos($view->js, 'window.B'), strpos($view->js, 'window.A'));
     }
 
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void

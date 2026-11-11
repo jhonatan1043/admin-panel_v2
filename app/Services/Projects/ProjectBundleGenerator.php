@@ -96,6 +96,26 @@ class ProjectBundleGenerator
         if (!js) return;
         try { (new Function(js)).call(window); } catch (e) { /* el JS de la vista no debe romper el bundle */ }
     }
+    // El HTML inyectado con innerHTML NO ejecuta sus <script>. Aquí los recreamos
+    // como nodos reales para que corran: primero los <script src> (librerías) en
+    // orden, luego los <script> en línea, y al final el JS propio de la vista.
+    function runScripts(container, done) {
+        var list = [];
+        var found = container.querySelectorAll("script");
+        for (var i = 0; i < found.length; i++) list.push(found[i]);
+        var idx = 0;
+        function next() {
+            if (idx >= list.length) { done(); return; }
+            var old = list[idx++];
+            var s = document.createElement("script");
+            for (var a = 0; a < old.attributes.length; a++) s.setAttribute(old.attributes[a].name, old.attributes[a].value);
+            var src = old.getAttribute("src");
+            if (old.parentNode) old.parentNode.removeChild(old);
+            if (src) { s.onload = next; s.onerror = next; document.body.appendChild(s); }
+            else { s.text = old.textContent || ""; document.body.appendChild(s); next(); }
+        }
+        next();
+    }
 
     // ---------- captura ----------
     function readValue(el) {
@@ -183,11 +203,16 @@ class ProjectBundleGenerator
         if (!v) return;
         stopPoll();
         applyCss(v.css || "");
-        mount().innerHTML = v.html || "";
+        var m = mount();
+        m.innerHTML = v.html || "";
         currentSpec = v.spec || null;
-        runJs(v.js || "");
-        emit("view", { view: slug });
-        if (slug === CONFIG.loading) startPoll();
+        // Ejecutar los <script> del HTML (incluidas librerías con src) y, al terminar,
+        // el JS propio de la vista. Así dependencias como jQuery están listas antes.
+        runScripts(m, function () {
+            runJs(v.js || "");
+            emit("view", { view: slug });
+            if (slug === CONFIG.loading) startPoll();
+        });
     }
 
     // ---------- espera: pregunta por la siguiente vista ----------

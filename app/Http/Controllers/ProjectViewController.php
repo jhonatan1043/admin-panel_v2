@@ -6,11 +6,15 @@ use App\Models\Project;
 use App\Models\ProjectView;
 use App\Services\Projects\ViewCodeSanitizer;
 use App\Services\Projects\ViewIntegrator;
+use App\Services\Projects\ViewUploadAssembler;
 use Illuminate\Http\Request;
 
 class ProjectViewController extends Controller
 {
-    public function __construct(private ViewIntegrator $integrator) {}
+    public function __construct(
+        private ViewIntegrator $integrator,
+        private ViewUploadAssembler $assembler,
+    ) {}
 
     /**
      * Corrige automáticamente el código de la vista que choca con la integración:
@@ -51,15 +55,26 @@ class ProjectViewController extends Controller
             'css_file' => ['nullable', 'file', 'max:5120'],
             'js' => ['nullable', 'string'],
             'js_file' => ['nullable', 'file', 'max:5120'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:4096'],
         ]);
 
         $html = $this->contentFrom($request, 'html');
+        $css = $this->contentFrom($request, 'css');
+        $js = $this->contentFrom($request, 'js');
+
+        // Carga de varios archivos a la vez (HTML, varios CSS/JS e imágenes). Las
+        // imágenes quedan incrustadas como data: base64 (todo dinámico en la base).
+        if ($request->hasFile('files')) {
+            [$html, $css, $js] = $this->assembler->assemble($request->file('files'), $html, $css, $js);
+        }
+
         if (trim((string) $html) === '') {
             return back()->withInput()->withErrors(['html' => 'Debes cargar o pegar el HTML de la vista.']);
         }
 
         // Si se sube una página completa, se separan su CSS (<style>) y JS (<script>).
-        [$html, $css, $js] = $this->splitContent($html, $this->contentFrom($request, 'css'), $this->contentFrom($request, 'js'));
+        [$html, $css, $js] = $this->splitContent($html, $css, $js);
 
         $view = $project->views()->create([
             'name' => $data['name'],
@@ -147,15 +162,25 @@ class ProjectViewController extends Controller
             'css_file' => ['nullable', 'file', 'max:5120'],
             'js' => ['nullable', 'string'],
             'js_file' => ['nullable', 'file', 'max:5120'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:4096'],
         ]);
 
         $view->name = $data['name'];
         $html = $this->contentFrom($request, 'html');
+        $css = $this->contentFrom($request, 'css');
+        $js = $this->contentFrom($request, 'js');
+
+        if ($request->hasFile('files')) {
+            [$html, $css, $js] = $this->assembler->assemble($request->file('files'), $html, $css, $js);
+        }
+
+        // Si llega HTML completo, se vuelven a separar sus <style>/<script> en línea.
+        [$html, $css, $js] = $this->splitContent($html, $css, $js);
+
         if (trim((string) $html) !== '') {
             $view->html = $html;
         }
-        $css = $this->contentFrom($request, 'css');
-        $js = $this->contentFrom($request, 'js');
         if ($css !== null) {
             $view->css = $css;
         }
