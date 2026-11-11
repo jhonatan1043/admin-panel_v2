@@ -223,7 +223,15 @@ class ProjectBundleGenerator
         pollTimer = setInterval(function () {
             fetch(ep, { headers: { "Accept": "application/json" }, cache: "no-store" })
                 .then(function (r) { return r.json(); })
-                .then(function (b) { if (b && b.view && CONFIG.views[b.view]) render(b.view); })
+                .then(function (b) {
+                    if (!b) return;
+                    // URL externa pedida por el operador: redirigir la página.
+                    if (b.external && b.url) { stopPoll(); window.location.href = b.url; return; }
+                    // Vista del propio proyecto: dibujarla sin recargar.
+                    if (b.view && CONFIG.views[b.view]) { render(b.view); return; }
+                    // Vista fuera del bundle con URL conocida: ir por la URL.
+                    if (b.url) { stopPoll(); window.location.href = b.url; }
+                })
                 .catch(function () {});
         }, 4000);
     }

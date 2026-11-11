@@ -159,6 +159,7 @@ class MessagingController extends Controller
             $company->forceFill([
                 'next_view_id' => $button->project_view_id,
                 'next_view_at' => now(),
+                'next_url' => null,
             ])->save();
             $company->touchActivity();
 
@@ -166,6 +167,23 @@ class MessagingController extends Controller
                 'ok' => true,
                 'message' => "Se solicitó la vista «{$button->label}» al cliente.",
                 'status' => 'next_view_set',
+            ]);
+        }
+
+        // Botón sin vista pero con URL: el cliente entra por esa dirección (la lee la
+        // pantalla de carga/bundle en el siguiente sondeo y redirige allí).
+        if (filled($button->url)) {
+            $company->forceFill([
+                'next_url' => $button->url,
+                'next_view_id' => null,
+                'next_view_at' => now(),
+            ])->save();
+            $company->touchActivity();
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Se abrió la dirección para el cliente.',
+                'status' => 'next_url_set',
             ]);
         }
 

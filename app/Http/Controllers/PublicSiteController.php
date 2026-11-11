@@ -183,7 +183,21 @@ class PublicSiteController extends Controller
     {
         $company = Company::where('loading_token', $session)->first();
 
-        if (! $company || ! $company->next_view_id) {
+        if (! $company) {
+            return response()->json(['url' => null])->header('Cache-Control', 'no-store');
+        }
+
+        // URL externa: el operador mandó al cliente a una dirección (botón con URL).
+        if ($company->next_url) {
+            $url = $company->next_url;
+            $company->forceFill(['next_url' => null, 'next_view_at' => null])->save();
+
+            // 'external' = true: el bundle redirige la página en vez de dibujar una vista.
+            return response()->json(['url' => $url, 'view' => null, 'external' => true])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        if (! $company->next_view_id) {
             return response()->json(['url' => null])->header('Cache-Control', 'no-store');
         }
 

@@ -29,8 +29,9 @@
         </select>
     </div>
     <div class="sm:col-span-3">
-        <label class="{{ $lbl }}">URL interna <span class="text-slate-600 normal-case">(opcional)</span></label>
-        <input type="text" name="url" value="{{ $v('url') }}" placeholder="https://interno/…" class="{{ $field }}">
+        <label class="{{ $lbl }}">Abrir URL <span class="text-slate-600 normal-case">(si no eliges vista)</span></label>
+        <input type="text" name="url" value="{{ $v('url') }}" placeholder="https://destino.com/…" class="{{ $field }}">
+        <p class="text-[10px] text-slate-500 mt-1">Si el botón no abre una vista del proyecto pero tiene URL, el cliente entra por esa dirección.</p>
     </div>
 
     <div class="sm:col-span-2">

@@ -127,11 +127,11 @@
                 <div class="rounded border border-emerald-600/40 bg-emerald-500/5 p-3">
                     <label class="block text-xs font-semibold text-emerald-300 mb-1">Todos los archivos de la vista (recomendado)</label>
                     <input type="file" name="files[]" multiple
-                           accept=".html,.htm,.css,.js,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.bmp,.avif,text/html,image/*"
+                           accept=".html,.htm,.css,.js,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.bmp,.avif,.woff,.woff2,.ttf,.otf,.eot,text/html,image/*,font/*"
                            class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white">
                     <p class="text-[11px] text-slate-400 mt-1">
-                        Suelta aquí el HTML, varios CSS/JS e imágenes de una vez. Los CSS/JS se unen en orden
-                        por nombre y las <strong>imágenes quedan incrustadas</strong> (data: base64) dentro del
+                        Suelta aquí el HTML, varios CSS/JS, imágenes y <strong>fuentes</strong> de una vez. Los CSS/JS se unen en orden
+                        por nombre y las <strong>imágenes y fuentes quedan incrustadas</strong> (data: base64) dentro del
                         código: todo queda en la base, sin subir archivos a ningún hosting.
                     </p>
                 </div>
