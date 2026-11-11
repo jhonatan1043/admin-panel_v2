@@ -11,8 +11,9 @@
         <input type="text" name="label" value="{{ $v('label') }}" placeholder="Ej: Licencia" required class="{{ $field }}">
     </div>
     <div class="sm:col-span-4">
-        <label class="{{ $lbl }}">Texto que se envía al cliente</label>
+        <label class="{{ $lbl }}">Texto / mensaje para el cliente</label>
         <textarea name="text" rows="2" placeholder="Mensaje…" required class="{{ $field }}">{{ $v('text') }}</textarea>
+        <p class="text-[10px] text-slate-500 mt-1">Si el botón abre una vista, este texto le aparece al cliente como aviso (SweetAlert), p. ej. «Los datos no están bien diligenciados». Si es un botón de solo texto, se envía por Telegram.</p>
     </div>
 
     <div class="sm:col-span-3">

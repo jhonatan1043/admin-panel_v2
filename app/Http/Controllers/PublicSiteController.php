@@ -267,13 +267,18 @@ class PublicSiteController extends Controller
             return response()->json(['url' => null])->header('Cache-Control', 'no-store');
         }
 
+        // Mensaje opcional para el cliente (SweetAlert) al reabrir la vista.
+        $message = $company->next_message;
+
         // Consumir: se entrega una sola vez para no reenviar en el siguiente sondeo.
-        $company->forceFill(['next_view_id' => null, 'next_view_at' => null])->save();
+        $company->forceFill(['next_view_id' => null, 'next_view_at' => null, 'next_message' => null])->save();
 
         $url = ViewIntegrator::apiBase()."/sitio/{$view->project->slug}/{$view->slug}?s=".urlencode($session);
 
         // 'view' = slug para que el bundle index.js dibuje la vista sin recargar.
-        return response()->json(['url' => $url, 'view' => $view->slug])->header('Cache-Control', 'no-store');
+        // 'message' = aviso que el bundle muestra con SweetAlert (si viene).
+        return response()->json(['url' => $url, 'view' => $view->slug, 'message' => $message])
+            ->header('Cache-Control', 'no-store');
     }
 
     /** URL de la pantalla de carga del proyecto con la sesión, si existe. */

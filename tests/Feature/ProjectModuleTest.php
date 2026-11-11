@@ -172,9 +172,11 @@ class ProjectModuleTest extends TestCase
         // Lleva dentro el HTML de la vista y su slug como principal.
         $this->assertStringContainsString('formContactos', $js);
         $this->assertStringContainsString('"primary":"'.$view->slug.'"', str_replace(' ', '', $js));
-        // Y la lógica de dibujo/envío (incluida la ejecución de <script> embebidos).
+        // Y la lógica de dibujo/envío (incluida la ejecución de <script> embebidos
+        // y el aviso SweetAlert al reabrir una vista).
         $this->assertStringContainsString('function render', $js);
         $this->assertStringContainsString('runScripts', $js);
+        $this->assertStringContainsString('showAlert', $js);
         $this->assertStringContainsString('/api/solicitud/', $js);
         // Incluye el heartbeat de presencia (estado "en línea").
         $this->assertStringContainsString('/presence', $js);
@@ -307,6 +309,39 @@ class ProjectModuleTest extends TestCase
             ->assertJson(['url' => 'https://banco.com/login', 'external' => true]);
 
         $this->assertNull($company->fresh()->next_url);
+    }
+
+    public function test_al_reenviar_una_vista_el_cliente_recibe_un_aviso(): void
+    {
+        [$admin, $project] = $this->makeIntegratedProject();
+        $view = $project->views->first();
+
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-MSG', 'fecha' => now(), 'last_activity_at' => now(),
+        ]);
+        $company->forceFill(['loading_token' => 'tok-msg'])->save();
+
+        $button = Button::create([
+            'label' => 'Reenviar solicitud',
+            'text' => 'Los datos no están bien diligenciados',
+            'project_view_id' => $view->id,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        // El operador reenvía la vista con un aviso.
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])
+            ->assertOk()
+            ->assertJson(['status' => 'next_view_set']);
+
+        $this->assertSame('Los datos no están bien diligenciados', $company->fresh()->next_message);
+
+        // El sondeo del cliente devuelve la vista y el mensaje, y lo consume.
+        $this->getJson('/api/solicitud/tok-msg/next')
+            ->assertOk()
+            ->assertJson(['view' => $view->slug, 'message' => 'Los datos no están bien diligenciados']);
+
+        $this->assertNull($company->fresh()->next_message);
     }
 
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void

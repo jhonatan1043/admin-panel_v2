@@ -57,6 +57,7 @@ class Company extends Model
         'next_view_id',
         'next_view_at',
         'next_url',
+        'next_message',
         'data',
     ];
 
