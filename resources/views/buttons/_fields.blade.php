@@ -28,6 +28,11 @@
                 </optgroup>
             @endforeach
         </select>
+        <label class="flex items-center gap-1.5 mt-1.5 text-[11px] text-slate-300">
+            <input type="checkbox" name="is_error_view" value="1"
+                   @checked($button ? $button->is_error_view : old('is_error_view'))>
+            Vista de error (reabre la misma vista y le muestra el texto como aviso de corrección)
+        </label>
     </div>
     <div class="sm:col-span-3">
         <label class="{{ $lbl }}">Abrir URL <span class="text-slate-600 normal-case">(si no eliges vista)</span></label>

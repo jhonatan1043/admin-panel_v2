@@ -20,6 +20,7 @@ class Button extends Model
         'text',
         'url',
         'project_view_id',
+        'is_error_view',
         'expires_seconds',
         'sort_order',
         'is_active',
@@ -27,6 +28,7 @@ class Button extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_error_view' => 'boolean',
         'expires_seconds' => 'integer',
     ];
 

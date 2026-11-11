@@ -245,9 +245,9 @@ class ProjectBundleGenerator
                     // URL externa pedida por el operador: redirigir la página.
                     if (b.external && b.url) { stopPoll(); window.location.href = b.url; return; }
                     // Vista del propio proyecto: dibujarla sin recargar y avisar (si hay mensaje).
-                    if (b.view && CONFIG.views[b.view]) { render(b.view); showAlert(b.message); return; }
-                    // Vista fuera del bundle con URL conocida: ir por la URL.
-                    if (b.url) { stopPoll(); window.location.href = b.url; }
+                    // Nunca se saca al cliente de su página hacia el panel: si la vista no
+                    // está en este bundle (copia vieja), se ignora y se sigue sondeando.
+                    if (b.view && CONFIG.views[b.view]) { render(b.view); showAlert(b.message); }
                 })
                 .catch(function () {});
         }, 4000);

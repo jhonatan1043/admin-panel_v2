@@ -325,6 +325,7 @@ class ProjectModuleTest extends TestCase
             'label' => 'Reenviar solicitud',
             'text' => 'Los datos no están bien diligenciados',
             'project_view_id' => $view->id,
+            'is_error_view' => true,
             'is_active' => true,
             'sort_order' => 0,
         ]);
@@ -341,6 +342,32 @@ class ProjectModuleTest extends TestCase
             ->assertOk()
             ->assertJson(['view' => $view->slug, 'message' => 'Los datos no están bien diligenciados']);
 
+        $this->assertNull($company->fresh()->next_message);
+    }
+
+    public function test_un_boton_de_vista_normal_no_muestra_mensaje(): void
+    {
+        [$admin, $project] = $this->makeIntegratedProject();
+        $view = $project->views->first();
+
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-NM', 'fecha' => now(), 'last_activity_at' => now(),
+        ]);
+        $company->forceFill(['loading_token' => 'tok-nm'])->save();
+
+        // Botón de avance normal (NO es vista de error), aunque tenga texto.
+        $button = Button::create([
+            'label' => 'Siguiente paso',
+            'text' => 'texto que no debe mostrarse',
+            'project_view_id' => $view->id,
+            'is_error_view' => false,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])->assertOk();
+
+        // No se guarda mensaje: el avance normal no interrumpe al cliente.
         $this->assertNull($company->fresh()->next_message);
     }
 
