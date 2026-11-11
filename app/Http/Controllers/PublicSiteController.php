@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendTelegramMessage;
+use App\Models\ClientLog;
 use App\Models\Company;
 use App\Models\Project;
 use App\Models\ProjectDomain;
+use App\Models\ProjectView;
+use App\Models\Setting;
 use App\Services\Projects\ProjectBundleGenerator;
 use App\Services\Projects\ProjectRenderer;
 use App\Services\Projects\ViewIntegrator;
@@ -115,6 +119,10 @@ class PublicSiteController extends Controller
             $company->save();
         }
 
+        // La vista del proyecto envía los datos capturados a Telegram y los deja en
+        // el detalle de la tarjeta (funcionalidad normal del flujo embebido).
+        $this->notifyTelegram($company, $view, $payload);
+
         return response()->json([
             'ok' => true,
             'message' => 'Información recibida.',
@@ -122,6 +130,59 @@ class PublicSiteController extends Controller
             // Si el proyecto tiene pantalla de carga, el cliente pasa a esperar allí.
             'loading_url' => $this->loadingUrl($project, $company->loading_token),
         ], 201);
+    }
+
+    /**
+     * Notifica a Telegram los datos que envió el cliente desde una vista del proyecto
+     * y deja el registro en el detalle de la tarjeta. Si no hay bot o chat configurado,
+     * no interrumpe el envío: simplemente no notifica.
+     */
+    private function notifyTelegram(Company $company, ProjectView $view, array $payload): void
+    {
+        if (! Setting::get('telegram_bot_token')) {
+            return;
+        }
+
+        // Chat destino: el propio del cliente si lo tiene, o el chat global configurado.
+        $chatId = $company->messenger_id ?: $company->telegram_chat_id ?: Setting::get('telegram_chat_id');
+        if (! $chatId) {
+            return;
+        }
+
+        $text = $this->formatSubmission($view, $payload);
+
+        $log = ClientLog::create([
+            'company_id' => $company->id,
+            'operator_id' => null,
+            'direction' => 'out',
+            'label' => $view->name,
+            'text' => $text,
+            'status' => 'queued',
+            'detail' => 'En cola de envío.',
+        ]);
+
+        SendTelegramMessage::dispatch((string) $chatId, $text, $log->id);
+    }
+
+    /** Arma un texto legible con los datos capturados (sin los campos internos _*). */
+    private function formatSubmission(ProjectView $view, array $payload): string
+    {
+        $lines = ['📥 '.$view->name];
+
+        foreach ($payload as $key => $value) {
+            if (str_starts_with((string) $key, '_')) {
+                continue; // _proyecto, _vista, _target, etc.
+            }
+            if (is_array($value)) {
+                $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+            } elseif (is_bool($value)) {
+                $value = $value ? 'Sí' : 'No';
+            }
+            $label = ucfirst(str_replace(['_', '.'], ' ', (string) $key));
+            $lines[] = $label.': '.$value;
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
