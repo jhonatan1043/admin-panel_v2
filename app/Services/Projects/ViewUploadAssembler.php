@@ -74,6 +74,8 @@ class ViewUploadAssembler
         // Incrustar imágenes como data: en el HTML y el CSS.
         if ($images !== []) {
             $html = $this->inlineImagesHtml((string) $html, $images);
+            // url(...) también dentro de un <style> embebido en el propio HTML.
+            $html = $this->inlineImagesCss((string) $html, $images);
             $css = $this->inlineImagesCss($css, $images);
         }
 

@@ -170,12 +170,22 @@
                     <input type="text" name="name" value="{{ old('name', $view->name) }}" required
                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
                 </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div><label class="block text-xs text-slate-400 mb-1">HTML</label><input type="file" name="html_file" accept=".html,.htm" class="w-full text-xs text-slate-400"></div>
-                    <div><label class="block text-xs text-slate-400 mb-1">CSS</label><input type="file" name="css_file" accept=".css" class="w-full text-xs text-slate-400"></div>
-                    <div><label class="block text-xs text-slate-400 mb-1">JS</label><input type="file" name="js_file" accept=".js" class="w-full text-xs text-slate-400"></div>
+                <div class="rounded border border-emerald-600/40 bg-emerald-500/5 p-3">
+                    <label class="block text-xs font-semibold text-emerald-300 mb-1">Reemplazar con todos los archivos (HTML, varios CSS/JS e imágenes)</label>
+                    <input type="file" name="files[]" multiple
+                           accept=".html,.htm,.css,.js,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.bmp,.avif,text/html,image/*"
+                           class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-600 file:text-white">
+                    <p class="text-[11px] text-slate-400 mt-1">Súbelos todos juntos para cambiar la vista: las imágenes quedan incrustadas y los CSS/JS se unen en orden por nombre.</p>
                 </div>
-                <p class="text-[11px] text-slate-500">Deja un campo vacío para conservar el archivo actual. Al guardar se reanaliza la vista.</p>
+                <details class="text-xs text-slate-400">
+                    <summary class="cursor-pointer hover:text-slate-200">…o reemplazar un archivo por tipo</summary>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <div><label class="block text-xs text-slate-400 mb-1">HTML</label><input type="file" name="html_file" accept=".html,.htm" class="w-full text-xs text-slate-400"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1">CSS</label><input type="file" name="css_file" accept=".css" class="w-full text-xs text-slate-400"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1">JS</label><input type="file" name="js_file" accept=".js" class="w-full text-xs text-slate-400"></div>
+                    </div>
+                </details>
+                <p class="text-[11px] text-slate-500">Deja todo vacío para conservar lo actual. Al guardar se reanaliza la vista.</p>
                 <button class="bg-slate-600 hover:bg-slate-500 text-white text-sm px-4 py-2 rounded">Guardar y reanalizar</button>
             </form>
         </div>

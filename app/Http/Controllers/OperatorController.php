@@ -20,7 +20,7 @@ class OperatorController extends Controller
 
     public function create()
     {
-        return view('operators.create', ['operator' => new User()]);
+        return view('operators.create', ['operator' => new User]);
     }
 
     public function store(Request $request)

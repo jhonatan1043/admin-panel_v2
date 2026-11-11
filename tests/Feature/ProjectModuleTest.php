@@ -214,6 +214,46 @@ class ProjectModuleTest extends TestCase
         $this->assertLessThan(strpos($view->js, 'window.B'), strpos($view->js, 'window.A'));
     }
 
+    public function test_la_pantalla_de_carga_acepta_varios_archivos_con_imagen(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Carga Multi'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Carga Multi');
+
+        $htmlFile = UploadedFile::fake()->createWithContent('cargando.html', '<div class="wrap"><img src="spinner.gif"></div>');
+        $cssFile = UploadedFile::fake()->createWithContent('estilo.css', '.wrap{background:url("fondo.png")}');
+        $spinner = UploadedFile::fake()->createWithContent('spinner.gif', 'GIFDATA');
+        $fondo = UploadedFile::fake()->createWithContent('fondo.png', 'PNGDATA');
+
+        $this->actingAs($admin)->post(route('projects.loading.store', $project), [
+            'files' => [$htmlFile, $cssFile, $spinner, $fondo],
+        ])->assertRedirect();
+
+        $loading = $project->fresh('views')->loadingView();
+        $this->assertNotNull($loading);
+        $this->assertStringContainsString('data:image/gif;base64,', $loading->html);
+        $this->assertStringContainsString('data:image/png;base64,', (string) $loading->css);
+    }
+
+    public function test_editar_una_vista_con_varios_archivos_reemplaza_el_contenido(): void
+    {
+        [$admin, $project] = $this->makeIntegratedProject();
+        $view = $project->views->first();
+
+        $htmlFile = UploadedFile::fake()->createWithContent('nuevo.html', '<form id="g"><img src="logo.png"><input name="z"><button type="submit">Ir</button></form>');
+        $logo = UploadedFile::fake()->createWithContent('logo.png', 'PNGDATA');
+
+        $this->actingAs($admin)->put(route('projects.views.update', [$project, $view]), [
+            'name' => 'Vista editada',
+            'files' => [$htmlFile, $logo],
+        ])->assertRedirect();
+
+        $view->refresh();
+        $this->assertSame('Vista editada', $view->name);
+        $this->assertStringContainsString('data:image/png;base64,', $view->html);
+        $this->assertStringNotContainsString('logo.png"', $view->html);
+    }
+
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void
     {
         [, $project] = $this->makeIntegratedProject();

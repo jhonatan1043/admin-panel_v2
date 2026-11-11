@@ -104,10 +104,18 @@ class ProjectViewController extends Controller
             'html_file' => ['nullable', 'file', 'mimetypes:text/html,text/plain', 'max:5120'],
             'css' => ['nullable', 'string'],
             'css_file' => ['nullable', 'file', 'max:5120'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:4096'],
         ]);
 
         $html = $this->contentFrom($request, 'html');
         $css = $this->contentFrom($request, 'css');
+
+        // La pantalla de carga también admite varios archivos (HTML, CSS e imágenes).
+        // El JS de espera lo genera el sistema, así que no se toma JS del cliente.
+        if ($request->hasFile('files')) {
+            [$html, $css] = $this->assembler->assemble($request->file('files'), $html, $css, null);
+        }
 
         $loading = $project->loadingView();
 

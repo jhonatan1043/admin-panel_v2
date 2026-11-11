@@ -22,7 +22,7 @@ class ApiDocsController extends Controller
 
         $dir = config('l5-swagger.defaults.paths.docs', storage_path('api-docs'));
         $file = config('l5-swagger.defaults.paths.docs_json', 'api-docs.json');
-        $path = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $file;
+        $path = rtrim($dir, '/\\').DIRECTORY_SEPARATOR.$file;
 
         abort_unless(is_file($path), 404, 'Especificación no generada.');
 
