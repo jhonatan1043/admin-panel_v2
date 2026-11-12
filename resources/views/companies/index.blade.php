@@ -236,6 +236,18 @@
                 if (beepTimer) { clearInterval(beepTimer); beepTimer = null; }
             }
 
+            // Bucle del sonido del CÓDIGO: suena (agudo, repetitivo) mientras haya al
+            // menos una tarjeta morada (contando). Para en cuanto ya no hay ninguna.
+            var codeLoopTimer = null;
+            function startCodeLoop() {
+                if (codeLoopTimer) return;
+                if (window.ewCodeBeep) window.ewCodeBeep();
+                codeLoopTimer = setInterval(function () { if (window.ewCodeBeep) window.ewCodeBeep(); }, 1500);
+            }
+            function stopCodeLoop() {
+                if (codeLoopTimer) { clearInterval(codeLoopTimer); codeLoopTimer = null; }
+            }
+
             // Desbloquea el audio en la primera interacción del operador.
             document.addEventListener('click', function () { getCtx(); }, { once: true });
 
@@ -303,6 +315,7 @@
             function revisar() {
                 var now = Date.now();
                 var vencidas = [];
+                var contando = 0;        // tarjetas moradas (en conteo) ahora mismo
                 var allKeys = new Set(); // todas las claves con vencimiento vigente (cuenta o vencida)
 
                 document.querySelectorAll('.client-card').forEach(function (card) {
@@ -319,8 +332,9 @@
 
                     var restante = t - now;
                     if (restante > 0) {
-                        // Aún no vence: muestra el conteo en vivo.
+                        // Aún no vence: muestra el conteo en vivo (tarjeta morada).
                         pintarCuenta(card, 'contando', restante);
+                        contando++;
                         return;
                     }
 
@@ -351,6 +365,9 @@
 
                 var sonando = sinSilenciar.length > 0 && now < soundUntil;
                 if (sonando) startBeeping(); else stopBeeping();
+
+                // Mientras haya una tarjeta morada (contando), suena el aviso del código.
+                if (contando > 0) startCodeLoop(); else stopCodeLoop();
 
                 // El banner solo muestra los vencimientos NO silenciados.
                 if (sinSilenciar.length > 0) {
@@ -420,24 +437,27 @@
                 });
             }
 
-            // Sonido para cuando llega un CÓDIGO (respuesta a tiempo, tarjeta morada):
-            // más agudo y repetitivo, para distinguirlo del aviso normal.
-            function codeChime() {
+            // Pitido agudo corto para el CÓDIGO (tarjeta morada). Se repite mientras la
+            // tarjeta siga morada: el bucle lo maneja la alarma (estado "contando").
+            function codeBeep() {
                 var ctx = getCtx();
                 if (!ctx) return;
-                for (var i = 0; i < 5; i++) {
-                    var t0 = ctx.currentTime + i * 0.16;
-                    var osc = ctx.createOscillator(), gain = ctx.createGain();
-                    osc.type = 'square';
-                    osc.frequency.value = 1568; // sol agudo
-                    gain.gain.setValueAtTime(0.0001, t0);
-                    gain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(t0);
-                    osc.stop(t0 + 0.13);
-                }
+                var t0 = ctx.currentTime;
+                var osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = 1568; // sol agudo
+                gain.gain.setValueAtTime(0.0001, t0);
+                gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(t0);
+                osc.stop(t0 + 0.15);
             }
+
+            // Expuesto (respeta silencio y configuración) para el bucle de la alarma.
+            window.ewCodeBeep = function () {
+                if (sonidoActivo() && !silenciado()) codeBeep();
+            };
 
             function mutedUntil() {
                 try { return parseInt(localStorage.getItem(LS_KEY) || '0', 10) || 0; } catch (e) { return 0; }
@@ -469,9 +489,9 @@
                 lastCode = code;
 
                 if (! sonidoActivo() || silenciado()) return;
-                // El código tiene prioridad y su propio sonido (agudo, repetitivo).
-                if (llegoCodigo) codeChime();
-                else if (llegoAlgo) chime();
+                // El sonido del código lo mantiene la alarma mientras la tarjeta esté
+                // morada; aquí solo suena el aviso normal para lo que no es código.
+                if (! llegoCodigo && llegoAlgo) chime();
             }
             setInterval(revisarSenal, 1500);
 

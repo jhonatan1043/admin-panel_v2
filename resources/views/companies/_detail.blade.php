@@ -2,6 +2,11 @@
 <span class="detail-alarm hidden"
       @if (! empty($company->alarm_at)) data-alarm-at="{{ $company->alarm_at->toIso8601String() }}" @endif></span>
 
+{{-- Señal de código (morado): mayor id de respuesta a tiempo; dispara el sonido del
+     código cuando la tarjeta está abierta (el tablero no se refresca en ese caso). --}}
+@php $codeId = (int) ($company->logs->filter(fn ($l) => ! empty($l->is_timed_reply))->max('id') ?? 0); @endphp
+<span class="detail-code-signal hidden" data-code="{{ $codeId }}"></span>
+
 {{-- Conversación del cliente (entrantes y salientes). Se refresca en vivo. --}}
 @if ($company->logs->isNotEmpty())
     <div class="mb-3">

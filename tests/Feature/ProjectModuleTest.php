@@ -369,9 +369,11 @@ class ProjectModuleTest extends TestCase
             'data' => ['nombre' => 'Juan Pérez', 'correo' => 'juan@correo.com'], 'session' => $token,
         ])->assertCreated();
 
-        // El detalle marca la respuesta a tiempo (morado, clase timed-reply).
+        // El detalle marca la respuesta a tiempo (morado) y expone la señal de código
+        // (para que suene el aviso aunque la tarjeta esté abierta).
         $html = $this->actingAs($admin)->get(route('companies.detail', $company))->assertOk()->getContent();
         $this->assertStringContainsString('timed-reply', $html);
+        $this->assertMatchesRegularExpression('/detail-code-signal[^>]*data-code="[1-9][0-9]*"/', $html);
     }
 
     public function test_el_envio_asigna_la_tarjeta_al_operador_del_proyecto(): void
