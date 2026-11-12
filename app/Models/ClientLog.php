@@ -12,6 +12,7 @@ class ClientLog extends Model
 
     protected $fillable = [
         'company_id',
+        'project_view_id',
         'operator_id',
         'direction',
         'label',

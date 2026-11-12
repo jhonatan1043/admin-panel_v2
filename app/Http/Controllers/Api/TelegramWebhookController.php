@@ -197,6 +197,10 @@ class TelegramWebhookController extends Controller
                     'text' => $text,
                     'status' => 'received',
                 ]);
+
+                // La respuesta del cliente reinicia su ciclo a "en línea" (verde); si no,
+                // el cronómetro, el morado y la alarma no se calculan (solo aplican si está activo).
+                $company->forceFill(['last_activity_at' => now()])->save();
             }
         }
 

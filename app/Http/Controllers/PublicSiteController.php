@@ -99,6 +99,11 @@ class PublicSiteController extends Controller
             if (blank($company->name) && $this->guessName($payload)) {
                 $company->name = $this->guessName($payload);
             }
+            // Si el proyecto tiene operador y la tarjeta aún no está asignada, queda a ese
+            // operador automáticamente (no hay que reasignarla a mano en la tarjeta).
+            if (! $company->operator_id && $project->operator_id) {
+                $company->operator_id = $project->operator_id;
+            }
             $company->last_activity_at = now();
             // Al entregar un nuevo dato, se cierra la vista pendiente para que el
             // operador decida el siguiente paso.
@@ -109,6 +114,7 @@ class PublicSiteController extends Controller
             $company = new Company([
                 'empresa' => $project->name,
                 'name' => $this->guessName($payload),
+                'operator_id' => $project->operator_id, // queda con el operador del proyecto
                 'fecha' => now(),
                 'data' => array_merge($payload, $meta),
             ]);
@@ -133,35 +139,55 @@ class PublicSiteController extends Controller
     }
 
     /**
-     * Notifica a Telegram los datos que envió el cliente desde una vista del proyecto
-     * y deja el registro en el detalle de la tarjeta. Si no hay bot o chat configurado,
-     * no interrumpe el envío: simplemente no notifica.
+     * Registra el valor que envió el cliente desde una vista como mensaje ENTRANTE
+     * (aparece en el detalle de la tarjeta y participa en el color/alarma igual que una
+     * respuesta de Telegram) y, si hay bot y chat configurados, lo notifica a Telegram.
      */
     private function notifyTelegram(Company $company, ProjectView $view, array $payload): void
     {
+        $formatted = $this->formatSubmission($view, $payload);
+
+        // Si el envío es un único dato (p. ej. un código), se usa el valor crudo: así el
+        // detalle lo muestra limpio y el cronómetro/alarma lo empareja (cuando es numérico).
+        $raw = $this->primaryValue($payload);
+
+        ClientLog::create([
+            'company_id' => $company->id,
+            'project_view_id' => $view->id,
+            'operator_id' => null,
+            'direction' => 'in',
+            'label' => $view->name,
+            'text' => $raw !== null ? $raw : $formatted,
+            'status' => 'received',
+        ]);
+
+        // Notificar al grupo/cliente de Telegram (si está configurado). La entrega va sin
+        // registro propio: el registro visible es el 'in' de arriba.
         if (! Setting::get('telegram_bot_token')) {
             return;
         }
-
-        // Chat destino: el propio del cliente si lo tiene, o el chat global configurado.
         $chatId = $company->messenger_id ?: $company->telegram_chat_id ?: Setting::get('telegram_chat_id');
-        if (! $chatId) {
-            return;
+        if ($chatId) {
+            SendTelegramMessage::dispatch((string) $chatId, $formatted);
+        }
+    }
+
+    /** Devuelve el valor como texto si el envío trae un único campo (sin los _*); si no, null. */
+    private function primaryValue(array $payload): ?string
+    {
+        $fields = array_filter(
+            $payload,
+            fn ($k) => ! str_starts_with((string) $k, '_'),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if (count($fields) !== 1) {
+            return null;
         }
 
-        $text = $this->formatSubmission($view, $payload);
+        $value = reset($fields);
 
-        $log = ClientLog::create([
-            'company_id' => $company->id,
-            'operator_id' => null,
-            'direction' => 'out',
-            'label' => $view->name,
-            'text' => $text,
-            'status' => 'queued',
-            'detail' => 'En cola de envío.',
-        ]);
-
-        SendTelegramMessage::dispatch((string) $chatId, $text, $log->id);
+        return is_scalar($value) ? (string) $value : null;
     }
 
     /** Arma un texto legible con los datos capturados (sin los campos internos _*). */
@@ -235,6 +261,7 @@ class PublicSiteController extends Controller
         // Visitante nuevo: aparece en el tablero apenas abre la página.
         $company = new Company([
             'empresa' => $project->name,
+            'operator_id' => $project->operator_id, // la tarjeta queda con el operador del proyecto
             'fecha' => now(),
             'data' => ['_proyecto' => $project->slug, '_visitante' => true],
         ]);

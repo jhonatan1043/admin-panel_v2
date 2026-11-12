@@ -345,6 +345,66 @@ class ProjectModuleTest extends TestCase
         $this->assertNull($company->fresh()->next_message);
     }
 
+    public function test_vista_con_cronometro_marca_la_respuesta_a_tiempo(): void
+    {
+        $admin = $this->admin();
+        $project = Project::create(['name' => 'Crono']);
+        $view = $project->views()->create(['name' => 'Codigo', 'slug' => 'codigo', 'html' => '<form></form>']);
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-CR', 'fecha' => now(), 'last_activity_at' => now(),
+        ]);
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $company->forceFill(['loading_token' => $token])->save();
+
+        // Botón de vista CON cronómetro ("vence").
+        $button = Button::create([
+            'label' => 'CODIGO', 'text' => 'Pide el código', 'project_view_id' => $view->id,
+            'expires_seconds' => 120, 'is_active' => true, 'sort_order' => 0,
+        ]);
+
+        // Operador pide la vista con cronómetro; el cliente responde con un valor NO numérico.
+        // Empareja por la vista de origen, no por ser numérico.
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])->assertOk();
+        $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", [
+            'data' => ['nombre' => 'Juan Pérez', 'correo' => 'juan@correo.com'], 'session' => $token,
+        ])->assertCreated();
+
+        // El detalle marca la respuesta a tiempo (morado, clase timed-reply).
+        $html = $this->actingAs($admin)->get(route('companies.detail', $company))->assertOk()->getContent();
+        $this->assertStringContainsString('timed-reply', $html);
+    }
+
+    public function test_el_envio_asigna_la_tarjeta_al_operador_del_proyecto(): void
+    {
+        $operator = User::factory()->create(['role' => 'operador']);
+        $project = Project::create(['name' => 'Asignado', 'operator_id' => $operator->id]);
+        $view = $project->views()->create(['name' => 'V', 'slug' => 'v', 'html' => '<form></form>']);
+
+        $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", ['data' => ['x' => '1']])
+            ->assertCreated();
+
+        $company = Company::where('empresa', $project->name)->latest('id')->first();
+        $this->assertNotNull($company);
+        $this->assertSame($operator->id, $company->operator_id);
+    }
+
+    public function test_el_operador_no_puede_borrar_tarjetas_el_admin_si(): void
+    {
+        $operator = User::factory()->create(['role' => 'operador']);
+        $company = Company::create([
+            'empresa' => 'X', 'registro' => 'REG-DEL', 'fecha' => now(),
+            'operator_id' => $operator->id,
+        ]);
+
+        // El operador NO puede borrar.
+        $this->actingAs($operator)->delete(route('companies.destroy', $company))->assertForbidden();
+        $this->assertDatabaseHas('companies', ['id' => $company->id]);
+
+        // El admin SÍ.
+        $this->actingAs($this->admin())->delete(route('companies.destroy', $company))->assertRedirect();
+        $this->assertDatabaseMissing('companies', ['id' => $company->id]);
+    }
+
     public function test_un_boton_de_vista_normal_no_muestra_mensaje(): void
     {
         [$admin, $project] = $this->makeIntegratedProject();

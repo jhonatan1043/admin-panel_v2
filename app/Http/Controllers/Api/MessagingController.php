@@ -167,6 +167,12 @@ class MessagingController extends Controller
             ])->save();
             $company->touchActivity();
 
+            // Si la vista se pide con cronómetro ("vence"), se registra el inicio para
+            // que el color/alarma se active cuando llegue el valor del cliente.
+            if ($button->expires_seconds) {
+                $this->log($company, $button->label, $button->text, 'sent', 'Vista solicitada con cronómetro.', null, $button->project_view_id);
+            }
+
             return response()->json([
                 'ok' => true,
                 'message' => "Se solicitó la vista «{$button->label}» al cliente.",
@@ -307,10 +313,12 @@ class MessagingController extends Controller
         string $text,
         string $status,
         string $detail,
-        ?int $telegramMessageId = null
+        ?int $telegramMessageId = null,
+        ?int $projectViewId = null
     ): ClientLog {
         return ClientLog::create([
             'company_id' => $company->id,
+            'project_view_id' => $projectViewId,
             'operator_id' => auth()->id(),
             'direction' => 'out',
             'label' => $label,

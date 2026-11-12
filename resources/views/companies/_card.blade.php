@@ -18,7 +18,7 @@
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
                   title="Proyecto / empresa de origen">{{ $company->empresa }}</span>
         @endif
-        @if ($company->current_status === 'deletable')
+        @if ($company->current_status === 'deletable' && auth()->user()->role === 'admin')
             <div class="ml-auto flex items-center gap-2 text-[10px]">
                 <form action="{{ route('companies.destroy', $company) }}" method="POST"
                       onclick="event.stopPropagation()"

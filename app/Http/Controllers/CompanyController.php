@@ -156,17 +156,19 @@ class CompanyController extends Controller
 
         $alarmAt = null;
         $pendingSeconds = null; // segundos del botón con cronómetro que espera respuesta
+        $pendingViewId = null;  // vista pedida por ese botón (para emparejar por vista)
 
         // Los logs vienen más recientes primero: se recorren en orden cronológico.
         foreach ($company->logs->reverse() as $log) {
-            // Valor del cliente: mensaje entrante de Telegram o el código que envía
-            // por send-test-code (queda como "Código de prueba").
+            // Valor del cliente: mensaje entrante de Telegram, el envío de una vista del
+            // proyecto, o el código de send-test-code (queda como "Código de prueba").
             $esValor = $log->direction === 'in' || $log->label === ClientLog::TEST_CODE_LABEL;
 
             if (! $esValor) {
                 $pendingSeconds = isset($expiryByLabel[$log->label])
                     ? (int) $expiryByLabel[$log->label]
                     : null;
+                $pendingViewId = $pendingSeconds !== null ? $log->project_view_id : null;
                 if ($pendingSeconds !== null) {
                     $alarmAt = null; // nueva opción con cronómetro: espera su propio valor
                 }
@@ -174,11 +176,21 @@ class CompanyController extends Controller
                 continue;
             }
 
-            if ($pendingSeconds !== null && $this->isNumeric($log->text)) {
-                $log->is_timed_reply = true;
-                $alarmAt = $log->created_at->copy()->addSeconds($pendingSeconds);
+            if ($pendingSeconds !== null) {
+                // Empareja por VISTA cuando el botón pidió una vista del proyecto (el valor
+                // ya no tiene que ser numérico); si no hay vista, vale el valor numérico
+                // (flujo de Telegram de siempre).
+                $empareja = $pendingViewId !== null
+                    ? (int) $log->project_view_id === (int) $pendingViewId
+                    : $this->isNumeric($log->text);
+
+                if ($empareja) {
+                    $log->is_timed_reply = true;
+                    $alarmAt = $log->created_at->copy()->addSeconds($pendingSeconds);
+                }
             }
             $pendingSeconds = null; // solo cuenta el mensaje inmediatamente siguiente
+            $pendingViewId = null;
         }
 
         return $alarmAt;
@@ -250,6 +262,9 @@ class CompanyController extends Controller
 
     public function destroy(Company $company)
     {
+        // Solo el administrador elimina registros; el operador no borra nada.
+        abort_unless(auth()->user()->role === 'admin', 403, 'Solo el administrador puede eliminar registros.');
+
         if ($company->loading_image_path) {
             Storage::disk('public')->delete($company->loading_image_path);
         }

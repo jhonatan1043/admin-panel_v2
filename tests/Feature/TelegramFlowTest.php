@@ -149,10 +149,10 @@ class TelegramFlowTest extends TestCase
                 && str_contains($request['text'], '123456');
         });
 
-        // Y quedó en el detalle de la tarjeta como entregado.
-        $log = ClientLog::where('direction', 'out')->latest('id')->first();
+        // El valor del cliente queda como ENTRANTE (aparece en el detalle de la tarjeta).
+        $log = ClientLog::where('direction', 'in')->latest('id')->first();
         $this->assertNotNull($log);
-        $this->assertSame('sent', $log->status);
+        $this->assertStringContainsString('123456', $log->text);
     }
 
     public function test_el_envio_de_vista_sin_telegram_igual_recibe_los_datos(): void
