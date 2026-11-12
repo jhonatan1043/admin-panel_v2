@@ -64,21 +64,21 @@ class ProjectBundleGenerator
     function remember(t) { try { if (t) { localStorage.setItem("ew_sess", t); sessionStorage.setItem("sessionToken", t); } } catch (e) {} }
 
     // ---------- presencia (estado "en línea" mientras la página está abierta) ----------
-    function presence() {
+    function presence(fresh) {
         if (document.hidden) return; // solo si la pestaña está visible
         fetch(CONFIG.api + "/api/sitio/" + encodeURIComponent(CONFIG.project) + "/presence", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ session: sessionToken() })
+            body: JSON.stringify({ session: sessionToken(), fresh: !!fresh })
         })
             .then(function (r) { return r.json(); })
             .then(function (b) { if (b && b.session) remember(b.session); })
             .catch(function () {});
     }
     function startPresence() {
-        presence();
-        setInterval(presence, 20000);
-        document.addEventListener("visibilitychange", function () { if (!document.hidden) presence(); });
+        presence(true); // primera vez = carga de página (puede limpiar el detalle anterior)
+        setInterval(function () { presence(false); }, 20000);
+        document.addEventListener("visibilitychange", function () { if (!document.hidden) presence(false); });
     }
 
     // ---------- montaje ----------
@@ -234,6 +234,7 @@ class ProjectBundleGenerator
 
     // ---------- espera: pregunta por la siguiente vista ----------
     function startPoll() {
+        stopPoll(); // nunca dejar dos sondeos a la vez (evita regresos inesperados de vista)
         var token = sessionToken();
         if (!token) return;
         var ep = CONFIG.api + "/api/solicitud/" + encodeURIComponent(token) + "/next";

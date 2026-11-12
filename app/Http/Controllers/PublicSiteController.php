@@ -195,14 +195,37 @@ class PublicSiteController extends Controller
         $project = Project::where('slug', $projectSlug)->first();
         abort_if($project === null, 404);
 
-        $data = $request->validate(['session' => ['nullable', 'uuid']]);
+        $data = $request->validate([
+            'session' => ['nullable', 'uuid'],
+            // 'fresh' = true solo en la PRIMERA llamada al cargar la página.
+            'fresh' => ['nullable', 'boolean'],
+        ]);
 
         $company = ! empty($data['session'])
             ? Company::where('loading_token', $data['session'])->first()
             : null;
 
         if ($company) {
-            // Actualización directa (sin eventos) para no invalidar cachés en cada latido.
+            // Visita nueva (carga de página) y la tarjeta había pasado a un estado
+            // que no es "en línea": se limpia el detalle anterior para empezar de cero.
+            if ($request->boolean('fresh') && $company->current_status !== 'active') {
+                $company->logs()->delete();
+                $company->forceFill([
+                    'data' => ['_proyecto' => $project->slug, '_visitante' => true],
+                    'name' => null,
+                    'next_view_id' => null,
+                    'next_view_at' => null,
+                    'next_url' => null,
+                    'next_message' => null,
+                    'last_activity_at' => now(),
+                    'last_seen_at' => now(),
+                ])->save();
+
+                return response()->json(['ok' => true, 'session' => $company->loading_token, 'cleared' => true])
+                    ->header('Cache-Control', 'no-store');
+            }
+
+            // Latido normal: actualización directa (sin eventos) para no invalidar cachés.
             Company::whereKey($company->id)->update(['last_seen_at' => now()]);
 
             return response()->json(['ok' => true, 'session' => $company->loading_token])

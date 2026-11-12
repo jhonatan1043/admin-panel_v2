@@ -371,6 +371,52 @@ class ProjectModuleTest extends TestCase
         $this->assertNull($company->fresh()->next_message);
     }
 
+    public function test_al_reconectar_tras_estar_inactivo_limpia_el_detalle(): void
+    {
+        $project = Project::create(['name' => 'Recon']);
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-RC', 'fecha' => now(),
+            'data' => ['nombre' => 'Viejo', 'codigo' => '111'],
+        ]);
+        // Inactivo hace rato (no es estado "activo") y la página estuvo cerrada.
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $company->forceFill([
+            'loading_token' => $token,
+            'last_activity_at' => now()->subHours(2),
+            'last_seen_at' => now()->subHours(2),
+        ])->save();
+        \App\Models\ClientLog::create([
+            'company_id' => $company->id, 'direction' => 'out', 'label' => 'x',
+            'text' => 'mensaje viejo', 'status' => 'sent', 'detail' => '',
+        ]);
+
+        // Primera presencia (carga de página) → limpia el detalle anterior.
+        $this->postJson("/api/sitio/{$project->slug}/presence", ['session' => $token, 'fresh' => true])
+            ->assertOk()
+            ->assertJson(['cleared' => true]);
+
+        $company->refresh();
+        $this->assertArrayNotHasKey('nombre', $company->data ?? []);
+        $this->assertSame(0, $company->logs()->count());
+    }
+
+    public function test_recargar_estando_activo_no_limpia_el_detalle(): void
+    {
+        $project = Project::create(['name' => 'Activo']);
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-AC', 'fecha' => now(),
+            'data' => ['nombre' => 'Actual'], 'last_activity_at' => now(),
+        ]);
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $company->forceFill(['loading_token' => $token, 'last_seen_at' => now()])->save();
+
+        $this->postJson("/api/sitio/{$project->slug}/presence", ['session' => $token, 'fresh' => true])
+            ->assertOk();
+
+        // Seguía activo: NO se limpia.
+        $this->assertSame('Actual', $company->fresh()->data['nombre']);
+    }
+
     public function test_entrega_el_js_embebible_publico_de_la_vista(): void
     {
         [, $project] = $this->makeIntegratedProject();
