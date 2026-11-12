@@ -12,6 +12,7 @@
 {{-- Señal para el aviso sonoro: cambia cuando llega algo nuevo (se lee tras cada refresco). --}}
 <div id="board-signal" hidden
      data-signal="{{ $arrivalSignal ?? '' }}"
+     data-code-signal="{{ $codeSignal ?? 0 }}"
      data-sound="{{ ($soundEnabled ?? true) ? '1' : '0' }}"></div>
 
 @php $online = $companies->filter->isOnline()->count(); @endphp

@@ -405,6 +405,31 @@ class ProjectModuleTest extends TestCase
         $this->assertDatabaseMissing('companies', ['id' => $company->id]);
     }
 
+    public function test_el_tablero_expone_senal_de_codigo_para_el_sonido(): void
+    {
+        $admin = $this->admin();
+        $project = Project::create(['name' => 'CronoSenal']);
+        $view = $project->views()->create(['name' => 'Codigo', 'slug' => 'codigo', 'html' => '<form></form>']);
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-CS', 'fecha' => now(), 'last_activity_at' => now(),
+        ]);
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $company->forceFill(['loading_token' => $token])->save();
+        $button = Button::create([
+            'label' => 'CODIGO', 'text' => 'codigo', 'project_view_id' => $view->id,
+            'expires_seconds' => 120, 'is_active' => true, 'sort_order' => 0,
+        ]);
+
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])->assertOk();
+        $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", [
+            'data' => ['codigo' => 'ABCDEF'], 'session' => $token,
+        ])->assertCreated();
+
+        // El tablero lleva una señal de código distinta de cero → el JS reproduce el sonido agudo.
+        $html = $this->actingAs($admin)->get(route('companies.board'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/data-code-signal="[1-9][0-9]*"/', $html);
+    }
+
     public function test_un_boton_de_vista_normal_no_muestra_mensaje(): void
     {
         [$admin, $project] = $this->makeIntegratedProject();

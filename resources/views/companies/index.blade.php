@@ -388,6 +388,7 @@
         (function () {
             var LS_KEY = 'avisos_silenciado_hasta';
             var lastSignal = null;
+            var lastCode = null;
             var audioCtx = null;
 
             function getCtx() {
@@ -419,6 +420,25 @@
                 });
             }
 
+            // Sonido para cuando llega un CÓDIGO (respuesta a tiempo, tarjeta morada):
+            // más agudo y repetitivo, para distinguirlo del aviso normal.
+            function codeChime() {
+                var ctx = getCtx();
+                if (!ctx) return;
+                for (var i = 0; i < 5; i++) {
+                    var t0 = ctx.currentTime + i * 0.16;
+                    var osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 1568; // sol agudo
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(t0);
+                    osc.stop(t0 + 0.13);
+                }
+            }
+
             function mutedUntil() {
                 try { return parseInt(localStorage.getItem(LS_KEY) || '0', 10) || 0; } catch (e) { return 0; }
             }
@@ -440,11 +460,18 @@
                 var el = document.getElementById('board-signal');
                 if (!el) return;
                 var sig = el.dataset.signal || '';
-                if (lastSignal === null) { lastSignal = sig; return; } // primera carga: no suena
-                if (sig !== lastSignal) {
-                    lastSignal = sig;
-                    if (sonidoActivo() && !silenciado()) chime();
-                }
+                var code = parseInt(el.dataset.codeSignal || '0', 10) || 0;
+                if (lastSignal === null) { lastSignal = sig; lastCode = code; return; } // primera carga: no suena
+
+                var llegoCodigo = code > lastCode;   // nuevo código a tiempo (morado)
+                var llegoAlgo = sig !== lastSignal;  // cualquier novedad
+                lastSignal = sig;
+                lastCode = code;
+
+                if (! sonidoActivo() || silenciado()) return;
+                // El código tiene prioridad y su propio sonido (agudo, repetitivo).
+                if (llegoCodigo) codeChime();
+                else if (llegoAlgo) chime();
             }
             setInterval(revisarSenal, 1500);
 

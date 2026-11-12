@@ -106,9 +106,17 @@ class CompanyController extends Controller
             : collect();
 
         // Momento de vencimiento del último valor recibido (para la alarma sonora).
+        // Al calcularlo, computeAlarmAt marca en los logs cuáles son respuestas "a tiempo"
+        // (código, morado): con esos armamos una señal aparte para un sonido distinto.
         $expiryByLabel = $this->expiryByLabel();
+        $codeSignal = 0;
         foreach ($companies as $company) {
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
+            foreach ($company->logs as $log) {
+                if (! empty($log->is_timed_reply)) {
+                    $codeSignal = max($codeSignal, (int) $log->id);
+                }
+            }
         }
 
         // Tablero dividido por empresa; cada grupo mantiene su orden por actividad.
@@ -126,7 +134,7 @@ class CompanyController extends Controller
 
         return compact(
             'companies', 'buttons', 'operators', 'companiesByEmpresa',
-            'arrivalSignal', 'soundEnabled'
+            'arrivalSignal', 'codeSignal', 'soundEnabled'
         );
     }
 
