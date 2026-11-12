@@ -87,6 +87,24 @@ class CompanyController extends Controller
         ]);
     }
 
+    /**
+     * Marca como "atendido" el código pendiente del cliente: a partir de aquí, ese
+     * valor ya no pone la tarjeta morada ni suena. Solo un código posterior reactiva.
+     */
+    public function attend(Company $company)
+    {
+        abort_unless(
+            auth()->user()->role === 'admin' || $company->operator_id === auth()->id(),
+            403,
+            'No tienes este cliente asignado.'
+        );
+
+        $maxIn = (int) $company->logs()->where('direction', 'in')->max('id');
+        $company->forceFill(['code_attended_id' => $maxIn])->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     /** Datos compartidos por el tablero completo y su refresco en vivo. */
     private function boardData(): array
     {
@@ -192,7 +210,11 @@ class CompanyController extends Controller
                     ? (int) $log->project_view_id === (int) $pendingViewId
                     : $this->isNumeric($log->text);
 
-                if ($empareja) {
+                // Si este valor ya fue marcado como "atendido", no vuelve a poner morado
+                // ni a sonar; solo un código posterior (id mayor) reactiva la alarma.
+                $yaAtendido = (int) $log->id <= (int) $company->code_attended_id;
+
+                if ($empareja && ! $yaAtendido) {
                     $log->is_timed_reply = true;
                     $alarmAt = $log->created_at->copy()->addSeconds($pendingSeconds);
                 }

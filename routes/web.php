@@ -56,6 +56,9 @@ Route::middleware('auth')->group(function () {
     // Exportar la conversación del cliente a TXT.
     Route::get('companies/{company}/detail/export', [CompanyController::class, 'exportDetail'])->name('companies.detail.export');
 
+    // Marcar como "atendido" el código pendiente (quita el morado y el sonido).
+    Route::post('companies/{company}/atendido', [CompanyController::class, 'attend'])->name('companies.attend');
+
     Route::resource('companies', CompanyController::class)->except('show');
 
     Route::post('companies/{company}/templates', [MessageTemplateController::class, 'store'])

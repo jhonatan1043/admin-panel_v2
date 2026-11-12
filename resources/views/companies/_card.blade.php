@@ -18,6 +18,13 @@
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
                   title="Proyecto / empresa de origen">{{ $company->empresa }}</span>
         @endif
+        {{-- Tarjeta morada (código pendiente): botón para marcarla atendida y callar la alarma. --}}
+        @if (! empty($company->alarm_at))
+            <button type="button" onclick="marcarAtendido(event, this)" data-company="{{ $company->id }}"
+                    class="btn-atendido ml-auto rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5">
+                Atendido
+            </button>
+        @endif
         @if ($company->current_status === 'deletable' && auth()->user()->role === 'admin')
             <div class="ml-auto flex items-center gap-2 text-[10px]">
                 <form action="{{ route('companies.destroy', $company) }}" method="POST"

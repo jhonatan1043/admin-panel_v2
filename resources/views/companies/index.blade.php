@@ -87,6 +87,35 @@
             }).finally(habilitar);
         }
 
+        // Marca la tarjeta (morada) como atendida: calla la alarma y no vuelve a salir
+        // ese código; solo un código nuevo la reactiva. Se persiste en el servidor.
+        function marcarAtendido(e, btn) {
+            e.stopPropagation();
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            fetch('/companies/' + btn.dataset.company + '/atendido', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                },
+            }).then(function (res) { return res.ok; }).then(function (ok) {
+                if (!ok) { btn.disabled = false; btn.style.opacity = ''; return; }
+                // Limpia el morado/alarma al instante: el sonido se detiene en el próximo chequeo.
+                var card = btn.closest('.client-card');
+                if (card) {
+                    card.removeAttribute('data-alarm-at');
+                    card.classList.remove('is-counting', 'is-ending', 'is-expired');
+                    var badge = card.querySelector('.alarm-badge');
+                    if (badge) badge.remove();
+                    var marca = card.querySelector('.detail-alarm');
+                    if (marca) marca.removeAttribute('data-alarm-at');
+                }
+                btn.remove();
+            }).catch(function () { btn.disabled = false; btn.style.opacity = ''; });
+        }
+
         // Delegación: abre solo la tarjeta seleccionada, el resto se cierra.
         document.addEventListener('click', function (e) {
             var card = e.target.closest('.client-card');

