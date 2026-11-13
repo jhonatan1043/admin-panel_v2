@@ -619,6 +619,112 @@ class ProjectModuleTest extends TestCase
         $this->assertSame(2, $project->fresh()->views()->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
     }
 
+    public function test_un_archivo_grande_no_rompe_la_subida_y_queda_como_faltante(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Grande'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Grande');
+
+        $html = '<form id="f"><img src="grande.png"><input name="a"><button type="submit">Ir</button></form>';
+        $this->actingAs($admin)->post(route('projects.views.store', $project), ['name' => 'V', 'html' => $html])->assertRedirect();
+        $view = $project->fresh('views')->views->first();
+
+        // Archivo de ~5 MB (supera el tope de 4 MB): NO debe hacer fallar la subida.
+        $big = UploadedFile::fake()->create('grande.png', 5000, 'image/png');
+        $this->actingAs($admin)->post(route('projects.views.assets', [$project, $view]), ['files' => [$big]])
+            ->assertRedirect();
+        $view->refresh();
+
+        // No se incrustó (sigue como referencia) y aparece en la lista de faltantes.
+        $this->assertStringNotContainsString('data:image/png;base64,', (string) $view->html);
+        $asm = app(\App\Services\Projects\ViewUploadAssembler::class);
+        $this->assertContains('grande.png', $asm->missing($view->html, $view->css));
+    }
+
+    public function test_assets_comentados_cuentan_pero_enlaces_de_pagina_comentados_no(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Coment'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Coment');
+
+        // Comentados: un asset (<img>/<link>/<script>) y un enlace a otra página.
+        $index = '<!-- <img src="img/comentada.png"> --><!-- <a href="oculta.html">x</a> --><div>hola</div>';
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', $index),
+            UploadedFile::fake()->createWithContent('oculta.html', '<div>oculta</div>'),
+        ];
+        $paths = ['sitio/index.html', 'sitio/oculta.html'];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), ['files' => $files, 'paths' => $paths])->assertRedirect();
+
+        // El enlace de página comentado NO crea vista (solo el index).
+        $this->assertSame(1, $project->fresh()->views()->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
+        // Pero el asset (imagen) comentado SÍ cuenta como faltante.
+        $this->assertTrue(collect(session('import_missing'))->contains(fn ($m) => $m['name'] === 'comentada.png'));
+
+        // La detección por vista también cuenta los assets comentados.
+        $asm = app(\App\Services\Projects\ViewUploadAssembler::class);
+        $this->assertContains('x.png', $asm->missing('<!-- <img src="x.png"> --><div></div>', null));
+    }
+
+    public function test_importar_carpeta_avisa_si_el_servidor_descarta_archivos(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Truncado'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Truncado');
+
+        // Llegan 2 archivos pero el navegador dice que envió 30 (PHP descartó el resto).
+        $this->actingAs($admin)->from(route('projects.show', $project))->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', '<div>x</div>'),
+                UploadedFile::fake()->createWithContent('a.css', '.x{}'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/a.css'],
+            'total_files' => 30,
+        ])->assertRedirect(route('projects.show', $project))->assertSessionHasErrors('files');
+
+        // No importó nada (no reemplazó ni creó vistas).
+        $this->assertSame(0, $project->fresh()->views()->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
+    }
+
+    public function test_importar_carpeta_lee_subcarpetas_anidadas(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Anidado'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Anidado');
+
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html',
+                '<link href="css/app.css" rel="stylesheet"><img src="assets/logo.png"><a href="pages/detalle.html">ver</a>'),
+            UploadedFile::fake()->createWithContent('app.css', '.b{background:url("../assets/bg.png")}'),
+            UploadedFile::fake()->createWithContent('logo.png', 'LOGO'),
+            UploadedFile::fake()->createWithContent('bg.png', 'BG'),
+            UploadedFile::fake()->createWithContent('detalle.html',
+                '<img src="../assets/logo.png"><script src="../js/d.js"></script>'),
+            UploadedFile::fake()->createWithContent('d.js', 'window.D=1;'),
+        ];
+        $paths = [
+            'sitio/index.html', 'sitio/css/app.css', 'sitio/assets/logo.png',
+            'sitio/assets/bg.png', 'sitio/pages/detalle.html', 'sitio/js/d.js',
+        ];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), ['files' => $files, 'paths' => $paths])
+            ->assertRedirect();
+
+        $this->assertEmpty(session('import_missing')); // todo resuelto entre subcarpetas
+
+        $project->refresh()->load('views');
+        $this->assertSame(2, $project->views->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
+
+        $index = $project->indexView();
+        $this->assertStringContainsString('data:image/png;base64,', $index->html);       // assets/logo.png
+        $this->assertStringContainsString('data:image/png;base64,', (string) $index->css); // ../assets/bg.png
+
+        $detalle = $project->views->firstWhere('slug', '!=', $index->slug);
+        $this->assertStringContainsString('data:image/png;base64,', $detalle->html);     // ../assets/logo.png
+        $this->assertStringContainsString('window.D=1;', (string) $detalle->js);         // ../js/d.js
+    }
+
     public function test_incrusta_un_svg_subido(): void
     {
         $admin = $this->admin();

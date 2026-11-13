@@ -56,7 +56,7 @@ class ProjectViewController extends Controller
             'js' => ['nullable', 'string'],
             'js_file' => ['nullable', 'file', 'max:5120'],
             'files' => ['nullable', 'array'],
-            'files.*' => ['file', 'max:4096'],
+            'files.*' => ['file'], // el tamaño se controla al incrustar: los grandes se omiten y se listan
         ]);
 
         $html = $this->contentFrom($request, 'html');
@@ -105,7 +105,7 @@ class ProjectViewController extends Controller
             'css' => ['nullable', 'string'],
             'css_file' => ['nullable', 'file', 'max:5120'],
             'files' => ['nullable', 'array'],
-            'files.*' => ['file', 'max:4096'],
+            'files.*' => ['file'], // el tamaño se controla al incrustar: los grandes se omiten y se listan
         ]);
 
         $html = $this->contentFrom($request, 'html');
@@ -171,7 +171,7 @@ class ProjectViewController extends Controller
 
         $request->validate([
             'files' => ['required', 'array'],
-            'files.*' => ['file', 'max:4096'],
+            'files.*' => ['file'], // el tamaño se controla al incrustar: los grandes se omiten y se listan
         ]);
 
         [$html, $css, $js] = $this->assembler->addMissingFiles((string) $view->html, $view->css, $view->js, $request->file('files'));
@@ -203,7 +203,7 @@ class ProjectViewController extends Controller
             'js' => ['nullable', 'string'],
             'js_file' => ['nullable', 'file', 'max:5120'],
             'files' => ['nullable', 'array'],
-            'files.*' => ['file', 'max:4096'],
+            'files.*' => ['file'], // el tamaño se controla al incrustar: los grandes se omiten y se listan
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
             'sends_data' => ['nullable', 'boolean'],
         ]);

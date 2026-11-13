@@ -261,6 +261,7 @@
                     var fd = new FormData();
                     var token = form.querySelector('input[name=_token]');
                     if (token) fd.append('_token', token.value);
+                    fd.append('total_files', lista.length); // para detectar si el servidor descarta archivos
                     ['mode', 'strategy'].forEach(function (campo) {
                         var sel = form.querySelector('input[name=' + campo + ']:checked');
                         if (sel) fd.append(campo, sel.value);

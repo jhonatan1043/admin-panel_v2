@@ -205,6 +205,7 @@ class ProjectFolderImporter
         $dir = $this->dir($htmlPath);
         $html = $byPath[$htmlPath]['contents'] ?? '';
         // <base> rompe la resolución de rutas relativas y el embed: se quita.
+        // (Los link/script/img comentados SÍ se procesan: el archivo igual se incrusta.)
         $html = (string) preg_replace('/<base\b[^>]*>/i', '', $html);
 
         [$html, $css, $js] = $this->splitInline($html);
@@ -442,31 +443,27 @@ class ProjectFolderImporter
         return $ordered;
     }
 
-    /** Enlaces a otras páginas .html (por <a href> o <form action>), ya resueltos. */
+    /**
+     * Enlaces a otras páginas .html que hace esta página, ya resueltos. Se reconoce
+     * cualquier referencia entre comillas a una .html: <a href>, <form action>,
+     * window.open, onclick, location.href, variables JS, etc. (cubre casi todo cómo
+     * "la llama" el index).
+     */
     private function htmlLinks(string $html, string $dir): array
     {
         $out = [];
-        $patrones = [
-            '/<a\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i',
-            '/<form\b[^>]*\baction\s*=\s*["\']([^"\']+)["\']/i',
-            // Navegación por JS: location.href='x.html', location.assign('x.html'), location='x.html'.
-            '/location\s*(?:\.\s*href\s*=|\.\s*assign\s*\(|=)\s*["\']([^"\']+)["\']/i',
-        ];
-        foreach ($patrones as $re) {
-            if (preg_match_all($re, $html, $m)) {
-                foreach ($m[1] as $u) {
-                    if (! preg_match('/\.html?($|[?#])/i', $u)) {
-                        continue; // solo enlaces a páginas .html
-                    }
-                    $resolved = $this->resolve($dir, $u);
-                    if ($resolved !== null) {
-                        $out[] = $resolved;
-                    }
+        // No seguir enlaces que estén comentados.
+        $html = (string) preg_replace('/<!--.*?-->/s', '', $html);
+        if (preg_match_all('/["\']([^"\']+?\.html?)(?:[?#][^"\']*)?["\']/i', $html, $m)) {
+            foreach ($m[1] as $u) {
+                $resolved = $this->resolve($dir, $u);
+                if ($resolved !== null) {
+                    $out[] = $resolved;
                 }
             }
         }
 
-        return $out;
+        return array_values(array_unique($out));
     }
 
     private function viewName(string $path): string

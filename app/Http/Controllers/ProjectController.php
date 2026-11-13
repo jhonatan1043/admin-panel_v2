@@ -29,9 +29,19 @@ class ProjectController extends Controller
             'files.*' => ['file'],
             'paths' => ['required', 'array'],
             'paths.*' => ['string'],
+            'total_files' => ['nullable', 'integer'],
             'mode' => ['nullable', 'in:linked,all'],
             'strategy' => ['nullable', 'in:replace,add'],
         ]);
+
+        // Si el navegador envió más archivos de los que llegaron, PHP los descartó
+        // (límites max_file_uploads / post_max_size). Avisar en vez de importar roto.
+        $recibidos = count($request->file('files'));
+        $enviados = (int) $request->input('total_files', $recibidos);
+        if ($enviados > $recibidos) {
+            return back()->withErrors(['files' => "El servidor solo recibió {$recibidos} de {$enviados} archivos. Sube los límites de PHP "
+                .'(max_file_uploads y post_max_size) y vuelve a importar.']);
+        }
 
         $result = $importer->import($project, $request->file('files'), (array) $request->input('paths'), [
             'only_linked' => $request->input('mode', 'linked') !== 'all',

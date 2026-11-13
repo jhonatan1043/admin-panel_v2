@@ -16,6 +16,9 @@ use Illuminate\Http\UploadedFile;
  */
 class ViewUploadAssembler
 {
+    /** Tamaño máximo por archivo para incrustar (KB). Por encima se omite y queda faltante. */
+    private const MAX_KB = 4096;
+
     /** Extensiones de imagen admitidas y su tipo MIME. */
     private const IMAGE_MIME = [
         'png' => 'image/png',
@@ -52,6 +55,10 @@ class ViewUploadAssembler
         foreach ($files as $file) {
             if (! $file instanceof UploadedFile || ! $file->isValid()) {
                 continue;
+            }
+
+            if ($file->getSize() > self::MAX_KB * 1024) {
+                continue; // demasiado grande: se omite y quedará listado como faltante
             }
 
             $ext = strtolower($file->getClientOriginalExtension());
@@ -118,6 +125,9 @@ class ViewUploadAssembler
         foreach ($files as $file) {
             if (! $file instanceof UploadedFile || ! $file->isValid()) {
                 continue;
+            }
+            if ($file->getSize() > self::MAX_KB * 1024) {
+                continue; // demasiado grande: se omite y quedará listado como faltante
             }
             $ext = strtolower($file->getClientOriginalExtension());
             $name = $file->getClientOriginalName();
@@ -195,14 +205,17 @@ class ViewUploadAssembler
     public function missing(?string $html, ?string $css): array
     {
         $refs = [];
+        $html = (string) $html;
+        $css = (string) $css;
 
-        if (preg_match_all('/<(?:img|script)\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']/i', (string) $html, $m)) {
+        // Nota: los link/script/img comentados SÍ cuentan (el archivo igual hace falta).
+        if (preg_match_all('/<(?:img|script)\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']/i', $html, $m)) {
             $refs = array_merge($refs, $m[1]);
         }
-        if (preg_match_all('/<link\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', (string) $html, $m)) {
+        if (preg_match_all('/<link\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', $html, $m)) {
             $refs = array_merge($refs, $m[1]);
         }
-        foreach ([(string) $html, (string) $css] as $src) {
+        foreach ([$html, $css] as $src) {
             if (preg_match_all('/url\(\s*(["\']?)([^"\')]+)\1\s*\)/i', $src, $m)) {
                 $refs = array_merge($refs, $m[2]);
             }
