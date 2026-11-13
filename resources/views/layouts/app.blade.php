@@ -132,6 +132,17 @@
         @yield('content')
     </main>
 
+    {{-- Pantalla de progreso para subidas (archivos + análisis). --}}
+    <div id="upload-overlay" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/70">
+        <div class="w-80 max-w-[90vw] rounded-lg border border-emerald-600/40 bg-slate-900 p-5 text-center shadow-xl">
+            <div id="upload-stage" class="text-sm font-semibold text-emerald-300 mb-3">Preparando…</div>
+            <div class="h-2 rounded bg-slate-700 overflow-hidden">
+                <div id="upload-bar" class="h-full bg-emerald-500 transition-all duration-150" style="width:0%"></div>
+            </div>
+            <div id="upload-pct" class="text-[11px] text-slate-400 mt-2">0%</div>
+        </div>
+    </div>
+
     <script>
         // Las alertas con data-autohide se ocultan solas tras el tiempo indicado.
         document.querySelectorAll('.js-flash[data-autohide]').forEach(function (el) {
@@ -163,6 +174,114 @@
                 }
             });
         }, true);
+
+        // Subidas con barra de progreso: muestra el % al subir y "Analizando…" mientras
+        // el servidor procesa, para que la página no parezca colgada.
+        (function () {
+            var overlay = document.getElementById('upload-overlay');
+            var stage = document.getElementById('upload-stage');
+            var bar = document.getElementById('upload-bar');
+            var pct = document.getElementById('upload-pct');
+            if (!overlay) return;
+
+            function mostrar() { overlay.classList.remove('hidden'); overlay.classList.add('flex'); }
+            function ocultar() { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
+            function porcentaje(p) { bar.classList.remove('animate-pulse'); bar.style.width = p + '%'; pct.textContent = Math.round(p) + '%'; }
+            function indeterminado(t) { stage.textContent = t; bar.style.width = '100%'; bar.classList.add('animate-pulse'); pct.textContent = ''; }
+
+            // Envía un formulario (FormData) mostrando la barra de progreso.
+            function enviar(form, fd, fallback) {
+                form.dataset.uploading = '1';
+                var xhr = new XMLHttpRequest();
+                xhr.open((form.method || 'POST').toUpperCase(), form.action, true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                mostrar();
+                stage.textContent = 'Subiendo archivos…';
+                porcentaje(0);
+
+                xhr.upload.onprogress = function (ev) { if (ev.lengthComputable) porcentaje(ev.loaded / ev.total * 100); };
+                xhr.upload.onload = function () { indeterminado('Analizando…'); };
+                xhr.onload = function () {
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        indeterminado('Listo');
+                        if (xhr.responseURL && xhr.responseURL !== form.action) window.location.href = xhr.responseURL;
+                        else window.location.reload();
+                        return;
+                    }
+                    form.dataset.uploading = '';
+                    ocultar();
+                    var msg = xhr.status === 413 || xhr.status === 500
+                        ? 'No se pudo guardar. Puede que los archivos sean demasiado grandes.'
+                        : ('El servidor devolvió un error (' + xhr.status + ').');
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'No se pudo procesar', text: msg });
+                    else alert(msg);
+                };
+                xhr.onerror = function () {
+                    form.dataset.uploading = '';
+                    ocultar();
+                    if (fallback) fallback(); else form.submit();
+                };
+                xhr.send(fd);
+            }
+
+            // Formularios normales de subida (una vista, archivos sueltos, etc.).
+            document.addEventListener('submit', function (e) {
+                var form = e.target.closest('form.js-upload-form');
+                if (!form || form.dataset.uploading === '1') return;
+                e.preventDefault();
+                enviar(form, new FormData(form));
+            });
+
+            // Importar CARPETA: arma files[]+paths[] con las rutas relativas (webkitRelativePath).
+            document.addEventListener('submit', function (e) {
+                var form = e.target.closest('form.js-folder-form');
+                if (!form || form.dataset.uploading === '1') return;
+                e.preventDefault();
+
+                var input = form.querySelector('input[type=file]');
+                var lista = input ? input.files : [];
+                if (!lista || lista.length === 0) { return; }
+
+                // Aviso de tamaño: evita que una carpeta grande falle por el límite del servidor.
+                var LIMITE = 38 * 1024 * 1024; // ~38 MB (debajo de post_max_size)
+                var total = 0;
+                for (var k = 0; k < lista.length; k++) total += (lista[k].size || 0);
+                var mb = (total / 1048576).toFixed(1);
+
+                if (total > LIMITE) {
+                    var aviso = 'La carpeta pesa ' + mb + ' MB y supera el límite (~38 MB). '
+                        + 'Quita archivos pesados (vídeos/imágenes grandes) o impórtala por partes.';
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Carpeta muy grande', text: aviso });
+                    else alert(aviso);
+                    return;
+                }
+
+                function armarYEnviar() {
+                    var fd = new FormData();
+                    var token = form.querySelector('input[name=_token]');
+                    if (token) fd.append('_token', token.value);
+                    ['mode', 'strategy'].forEach(function (campo) {
+                        var sel = form.querySelector('input[name=' + campo + ']:checked');
+                        if (sel) fd.append(campo, sel.value);
+                    });
+                    for (var i = 0; i < lista.length; i++) {
+                        fd.append('files[]', lista[i]);
+                        fd.append('paths[]', lista[i].webkitRelativePath || lista[i].name);
+                    }
+                    enviar(form, fd);
+                }
+
+                var pregunta = (form.dataset.confirmFolder || '') + ' (' + lista.length + ' archivos, ' + mb + ' MB)';
+                if (window.Swal) {
+                    Swal.fire({ title: '¿Importar carpeta?', text: pregunta, icon: 'warning', showCancelButton: true,
+                        confirmButtonText: 'Sí, importar', cancelButtonText: 'Cancelar', confirmButtonColor: '#0284c7' })
+                        .then(function (r) { if (r.isConfirmed) armarYEnviar(); });
+                } else {
+                    armarYEnviar();
+                }
+            });
+        })();
     </script>
 </body>
 </html>

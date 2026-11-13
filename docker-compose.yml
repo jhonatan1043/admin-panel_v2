@@ -30,6 +30,8 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    # Paquete grande: las vistas guardan imágenes/fuentes en base64 (filas grandes).
+    command: ["--max-allowed-packet=256M"]
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-panel_admin}
       MYSQL_USER: ${DB_USERNAME:-panel}

@@ -467,6 +467,158 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('timed-reply', $html);
     }
 
+    public function test_vista_de_paso_va_marcada_y_el_bundle_lleva_el_orden(): void
+    {
+        $project = Project::create(['name' => 'Flujo']);
+        $project->views()->create(['name' => 'Intro', 'slug' => 'intro', 'html' => '<div></div>', 'sort_order' => 1, 'sends_data' => false]);
+        $project->views()->create(['name' => 'Datos', 'slug' => 'datos', 'html' => '<form></form>', 'sort_order' => 2, 'sends_data' => true]);
+
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+        $compact = str_replace(' ', '', $js);
+
+        $this->assertStringContainsString('"order"', $js);
+        $this->assertStringContainsString('nextInOrder', $js);
+        $this->assertStringContainsString('currentFlow', $js);
+        // La vista "intro" es de paso (no envía).
+        $this->assertMatchesRegularExpression('/"intro":\{[^}]*"sends":false/', $compact);
+        // Y "datos" sí envía.
+        $this->assertMatchesRegularExpression('/"datos":\{[^}]*"sends":true/', $compact);
+    }
+
+    public function test_editar_vista_guarda_orden_y_marca_de_paso(): void
+    {
+        [$admin, $project] = $this->makeIntegratedProject();
+        $view = $project->views->first();
+
+        // Sin 'sends_data' en la petición = desmarcado = vista de paso.
+        $this->actingAs($admin)->put(route('projects.views.update', [$project, $view]), [
+            'name' => $view->name, 'sort_order' => 5,
+        ])->assertRedirect();
+
+        $view->refresh();
+        $this->assertSame(5, $view->sort_order);
+        $this->assertFalse($view->sends_data);
+    }
+
+    public function test_la_vista_pide_los_archivos_faltantes_y_se_completan(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Faltan'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Faltan');
+
+        // HTML con referencias a archivos que NO se suben.
+        $html = '<link href="css/estilo.css" rel="stylesheet">'
+            .'<form id="f"><img src="img/logo.png"><input name="a"><button type="submit">Ir</button></form>'
+            .'<script src="js/app.js"></script>';
+        $this->actingAs($admin)->post(route('projects.views.store', $project), ['name' => 'Login', 'html' => $html])->assertRedirect();
+        $view = $project->fresh('views')->views->first();
+
+        $asm = app(\App\Services\Projects\ViewUploadAssembler::class);
+        $this->assertEqualsCanonicalizing(['estilo.css', 'logo.png', 'app.js'], $asm->missing($view->html, $view->css));
+
+        // La página de la vista muestra la lista de faltantes.
+        $show = $this->actingAs($admin)->get(route('projects.views.show', [$project, $view]))->assertOk()->getContent();
+        $this->assertStringContainsString('Faltan archivos', $show);
+        $this->assertStringContainsString('logo.png', $show);
+
+        // Se suben los tres: imagen se incrusta, css/js se fusionan y se quitan sus referencias.
+        $this->actingAs($admin)->post(route('projects.views.assets', [$project, $view]), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('logo.png', 'PNG'),
+                UploadedFile::fake()->createWithContent('estilo.css', '.x{color:red}'),
+                UploadedFile::fake()->createWithContent('app.js', 'window.X=1;'),
+            ],
+        ])->assertRedirect();
+        $view->refresh();
+
+        $this->assertStringContainsString('data:image/png;base64,', $view->html);
+        $this->assertStringContainsString('.x{color:red}', (string) $view->css);
+        $this->assertStringContainsString('window.X=1;', (string) $view->js);
+        $this->assertSame([], $asm->missing($view->html, $view->css));
+    }
+
+    public function test_importar_carpeta_crea_vistas_resuelve_archivos_y_lista_faltantes(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Sitio'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Sitio');
+
+        $index = '<link href="css/app.css" rel="stylesheet">'
+            .'<a href="otra.html">siguiente</a>'
+            .'<form id="f"><img src="img/logo.png"><img src="img/falta.png"><input name="a"><button type="submit">Ir</button></form>'
+            .'<script src="js/app.js"></script>';
+
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', $index),
+            UploadedFile::fake()->createWithContent('app.css', '.b{background:url("../img/bg.png")}'),
+            UploadedFile::fake()->createWithContent('logo.png', 'PNGLOGO'),
+            UploadedFile::fake()->createWithContent('bg.png', 'PNGBG'),
+            UploadedFile::fake()->createWithContent('app.js', 'window.APP=1;'),
+            UploadedFile::fake()->createWithContent('otra.html', '<div>otra pagina</div>'),
+            UploadedFile::fake()->createWithContent('suelta.html', '<div>no enlazada</div>'),
+        ];
+        $paths = [
+            'sitio/index.html', 'sitio/css/app.css', 'sitio/img/logo.png',
+            'sitio/img/bg.png', 'sitio/js/app.js', 'sitio/otra.html', 'sitio/suelta.html',
+        ];
+
+        $res = $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => $files, 'paths' => $paths,
+        ])->assertRedirect(route('projects.show', $project));
+
+        $res->assertSessionHas('import_missing');
+        $this->assertTrue(collect(session('import_missing'))->contains(fn ($m) => $m['name'] === 'falta.png' && $m['reason'] === 'no existe'));
+
+        $project->refresh()->load('views');
+        $standard = $project->views->where('role', \App\Models\ProjectView::ROLE_STANDARD)->values();
+        // Solo index + otra (enlazada). La .html suelta no se importa.
+        $this->assertCount(2, $standard);
+        $this->assertFalse($standard->contains('name', 'Suelta'));
+
+        // El index quedó como principal (orden 0).
+        $index = $project->indexView();
+        $this->assertNotNull($index);
+        $this->assertSame(0, $index->sort_order);
+        $this->assertSame($project->primary_view_id, $index->id);
+
+        // Imagen y fuente incrustadas; css/js fusionados y sus referencias quitadas.
+        $this->assertStringContainsString('data:image/png;base64,', $index->html);
+        $this->assertStringNotContainsString('img/logo.png', $index->html);
+        $this->assertStringNotContainsString('<link', $index->html);
+        $this->assertStringNotContainsString('<script', $index->html);
+        $this->assertStringContainsString('data:image/png;base64,', (string) $index->css); // bg.png vía url()
+        $this->assertStringContainsString('window.APP=1;', (string) $index->js);
+
+        // La vista con formulario envía; la de solo texto es de paso.
+        $otra = $standard->firstWhere('slug', '!=', $index->slug);
+        $this->assertTrue($index->sends_data);
+        $this->assertFalse($otra->sends_data);
+
+        // El enlace <a href="otra.html"> quedó remapeado para abrir esa vista en el embed.
+        $this->assertStringContainsString('data-ew-view="'.$otra->slug.'"', $index->html);
+        $this->assertStringNotContainsString('href="otra.html"', $index->html);
+    }
+
+    public function test_importar_carpeta_modo_todas_incluye_las_no_enlazadas(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Todas'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Todas');
+
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', '<div>inicio</div>'),
+            UploadedFile::fake()->createWithContent('suelta.html', '<div>suelta</div>'),
+        ];
+        $paths = ['sitio/index.html', 'sitio/suelta.html'];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => $files, 'paths' => $paths, 'mode' => 'all',
+        ])->assertRedirect();
+
+        // En modo "todas" la .html no enlazada también entra.
+        $this->assertSame(2, $project->fresh()->views()->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
+    }
+
     public function test_incrusta_un_svg_subido(): void
     {
         $admin = $this->admin();

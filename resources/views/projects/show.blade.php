@@ -113,10 +113,61 @@
             @endforelse
         </div>
 
+        {{-- Importar una carpeta completa (modalidad aparte) --}}
+        <div class="border border-sky-700/50 rounded bg-sky-500/5 p-4">
+            <h2 class="text-sm font-semibold text-sky-200 mb-1">Importar carpeta completa</h2>
+            <p class="text-[12px] text-slate-400 mb-3">
+                Sube una carpeta: el sistema ubica el <code>index.html</code> (vista inicial), toma cada
+                <code>.html</code> como una vista y resuelve sus archivos (CSS, JS, imágenes, fuentes).
+                Lo que no exista o pese de más se listará como <strong>faltante</strong>.
+                <span class="text-amber-300">Reemplaza las vistas actuales del proyecto.</span>
+            </p>
+            @if (session()->has('import_missing'))
+                @php $imiss = collect(session('import_missing')); @endphp
+                <div class="mb-3 rounded border {{ $imiss->isEmpty() ? 'border-emerald-600/40 bg-emerald-500/5' : 'border-amber-600/50 bg-amber-500/5' }} p-2">
+                    @if ($imiss->isEmpty())
+                        <span class="text-[12px] text-emerald-300">Importación completa: no faltó ningún archivo.</span>
+                    @else
+                        <div class="text-[12px] text-amber-300 mb-1">Faltaron {{ $imiss->count() }} archivo(s):</div>
+                        <ul class="flex flex-wrap gap-1.5">
+                            @foreach ($imiss as $f)
+                                @php $nombre = is_array($f) ? ($f['name'] ?? '') : $f; $motivo = is_array($f) ? ($f['reason'] ?? '') : ''; @endphp
+                                <li class="rounded bg-black/40 border border-amber-500/40 text-amber-200 text-[11px] px-2 py-0.5 font-mono">
+                                    {{ $nombre }}@if ($motivo)<span class="text-amber-400/70"> · {{ $motivo === 'tamaño' ? 'pesa de más' : 'no existe' }}</span>@endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            @endif
+            <form method="POST" action="{{ route('projects.import', $project) }}" enctype="multipart/form-data"
+                  class="space-y-2 js-folder-form"
+                  data-confirm-folder="Se importará la carpeta a este proyecto. ¿Continuar?">
+                @csrf
+                <div class="flex flex-wrap items-center gap-4 text-[11px] text-slate-300">
+                    <span class="flex items-center gap-2">
+                        Vistas:
+                        <label class="flex items-center gap-1"><input type="radio" name="mode" value="linked" checked> solo enlazadas</label>
+                        <label class="flex items-center gap-1"><input type="radio" name="mode" value="all"> todas</label>
+                    </span>
+                    <span class="flex items-center gap-2">
+                        Existentes:
+                        <label class="flex items-center gap-1"><input type="radio" name="strategy" value="replace" checked> reemplazar</label>
+                        <label class="flex items-center gap-1"><input type="radio" name="strategy" value="add"> agregar</label>
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input type="file" name="files[]" webkitdirectory directory multiple required
+                           class="text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-sky-600 file:text-white">
+                    <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm px-4 py-2 rounded">Importar carpeta</button>
+                </div>
+            </form>
+        </div>
+
         {{-- Cargar una vista --}}
         <div class="border border-slate-700 rounded bg-black/20 p-4">
             <h2 class="text-sm font-semibold text-slate-200 mb-3">Cargar una vista</h2>
-            <form method="POST" action="{{ route('projects.views.store', $project) }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ route('projects.views.store', $project) }}" enctype="multipart/form-data" class="space-y-3 js-upload-form">
                 @csrf
                 <div>
                     <label class="block text-xs text-slate-400 mb-1">Nombre de la vista</label>
@@ -186,7 +237,7 @@
                 Lo que el cliente ve mientras el operador revisa sus datos y pide la siguiente vista con un botón.
                 Solo HTML y CSS propios de este proyecto; el JavaScript de espera lo genera el sistema.
             </p>
-            <form method="POST" action="{{ route('projects.loading.store', $project) }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ route('projects.loading.store', $project) }}" enctype="multipart/form-data" class="space-y-3 js-upload-form">
                 @csrf
                 <div class="rounded border border-emerald-600/40 bg-emerald-500/5 p-3">
                     <label class="block text-xs font-semibold text-emerald-300 mb-1">Todos los archivos de la carga (HTML, CSS e imágenes)</label>

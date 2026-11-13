@@ -37,6 +37,29 @@
     </div>
 </div>
 
+@if (! empty($missingAssets))
+    <div class="border border-amber-600/50 bg-amber-500/5 rounded p-4 mb-4">
+        <h2 class="text-sm font-semibold text-amber-300 mb-1">Faltan archivos por subir ({{ count($missingAssets) }})</h2>
+        <p class="text-[12px] text-slate-400 mb-2">
+            La vista hace referencia a estos archivos (imágenes, estilos, scripts o fuentes) que todavía no están incrustados.
+            Súbelos para que la vista cargue completa. Puedes subirlos de a uno o varios juntos; se emparejan por nombre.
+        </p>
+        <ul class="flex flex-wrap gap-1.5 mb-3">
+            @foreach ($missingAssets as $file)
+                <li class="rounded bg-black/40 border border-amber-500/40 text-amber-200 text-[11px] px-2 py-0.5 font-mono">{{ $file }}</li>
+            @endforeach
+        </ul>
+        <form method="POST" action="{{ route('projects.views.assets', [$project, $view]) }}" enctype="multipart/form-data"
+              class="flex flex-wrap items-center gap-2 js-upload-form">
+            @csrf
+            <input type="file" name="files[]" multiple required
+                   accept=".css,.js,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.bmp,.avif,.woff,.woff2,.ttf,.otf,.eot,image/*,font/*"
+                   class="text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-amber-600 file:text-white">
+            <button class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded">Subir archivos</button>
+        </form>
+    </div>
+@endif
+
 <x-tip title="Qué ves en esta vista">
     <ul class="list-disc list-inside space-y-1">
         <li><strong>Elementos detectados</strong>: los campos, formularios y botones que el sistema encontró. Esos datos son los que se recopilarán y enviarán.</li>
@@ -163,13 +186,25 @@
 
         <div class="border border-slate-700 rounded bg-black/20 p-4">
             <h2 class="text-sm font-semibold text-slate-200 mb-2">Reemplazar archivos</h2>
-            <form method="POST" action="{{ route('projects.views.update', [$project, $view]) }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ route('projects.views.update', [$project, $view]) }}" enctype="multipart/form-data" class="space-y-3 js-upload-form">
                 @csrf @method('PUT')
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Nombre</label>
-                    <input type="text" name="name" value="{{ old('name', $view->name) }}" required
-                           class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                <div class="grid sm:grid-cols-[1fr,auto] gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Nombre</label>
+                        <input type="text" name="name" value="{{ old('name', $view->name) }}" required
+                               class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Orden</label>
+                        <input type="number" name="sort_order" min="0" max="999" value="{{ old('sort_order', $view->sort_order) }}"
+                               class="w-24 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                               title="Posición en la secuencia por la que pasa el cliente">
+                    </div>
                 </div>
+                <label class="flex items-center gap-2 text-xs text-slate-300">
+                    <input type="checkbox" name="sends_data" value="1" @checked(old('sends_data', $view->sends_data))>
+                    Esta vista <strong>envía información</strong> (desmárcala si es una vista de paso: el cliente solo avanza a la siguiente del orden, sin enviar nada)
+                </label>
                 <div class="rounded border border-emerald-600/40 bg-emerald-500/5 p-3">
                     <label class="block text-xs font-semibold text-emerald-300 mb-1">Reemplazar con todos los archivos (HTML, varios CSS/JS e imágenes)</label>
                     <input type="file" name="files[]" multiple

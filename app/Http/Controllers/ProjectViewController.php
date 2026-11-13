@@ -154,7 +154,39 @@ class ProjectViewController extends Controller
         // ¿Hay código propio (submit/onsubmit/funciones ausentes) que se pueda corregir?
         $canAutoFix = ! $view->isLoading() && $sanitizer->needsFix((string) $view->html, $view->js);
 
-        return view('projects.views.show', compact('project', 'view', 'canAutoFix'));
+        // Archivos referenciados (link/img/script/url) que faltan por subir.
+        $missingAssets = $this->assembler->missing($view->html, $view->css);
+
+        return view('projects.views.show', compact('project', 'view', 'canAutoFix', 'missingAssets'));
+    }
+
+    /**
+     * Sube los archivos que faltaban (imágenes, fuentes) y los incrusta en la vista,
+     * uno o varios a la vez. Reduce la lista de faltantes hasta completarla.
+     */
+    public function uploadAssets(Request $request, Project $project, ProjectView $view)
+    {
+        abort_unless($project->managedBy(auth()->user()), 403);
+        abort_unless($view->project_id === $project->id, 404);
+
+        $request->validate([
+            'files' => ['required', 'array'],
+            'files.*' => ['file', 'max:4096'],
+        ]);
+
+        [$html, $css, $js] = $this->assembler->addMissingFiles((string) $view->html, $view->css, $view->js, $request->file('files'));
+        $view->html = $html;
+        $view->css = $css;
+        $view->js = $js;
+        $view->save();
+        $this->integrator->integrate($view);
+
+        $faltan = $this->assembler->missing($view->html, $view->css);
+        $msg = $faltan === []
+            ? 'Archivos agregados. Ya no falta ninguno.'
+            : 'Archivos agregados. Faltan: '.implode(', ', $faltan).'.';
+
+        return back()->with('status', $msg);
     }
 
     public function update(Request $request, Project $project, ProjectView $view)
@@ -172,9 +204,14 @@ class ProjectViewController extends Controller
             'js_file' => ['nullable', 'file', 'max:5120'],
             'files' => ['nullable', 'array'],
             'files.*' => ['file', 'max:4096'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'sends_data' => ['nullable', 'boolean'],
         ]);
 
         $view->name = $data['name'];
+        // Orden en la secuencia y si la vista envía información (o es solo de paso).
+        $view->sort_order = (int) $request->input('sort_order', $view->sort_order);
+        $view->sends_data = $request->boolean('sends_data');
         $html = $this->contentFrom($request, 'html');
         $css = $this->contentFrom($request, 'css');
         $js = $this->contentFrom($request, 'js');

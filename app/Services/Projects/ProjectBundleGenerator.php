@@ -29,14 +29,25 @@ class ProjectBundleGenerator
                 'html' => (string) $v->html,
                 'js' => $isLoading ? '' : (string) $v->js,
                 'spec' => $isLoading ? null : ($v->spec ?? null),
+                // ¿Envía información? Las vistas "de paso" (sends_data=false) solo avanzan.
+                'sends' => $isLoading ? false : (bool) $v->sends_data,
             ];
         }
+
+        // Orden de las vistas (sin la de carga): el cliente avanza por aquí en las de paso.
+        $order = $project->views
+            ->reject(fn ($v) => $v->isLoading())
+            ->sortBy(fn ($v) => [$v->sort_order ?? 0, $v->id])
+            ->pluck('slug')
+            ->values()
+            ->all();
 
         $config = json_encode([
             'api' => ViewIntegrator::apiBase(),
             'project' => $project->slug,
             'primary' => optional($project->indexView())->slug,
             'loading' => optional($project->loadingView())->slug,
+            'order' => $order,
             'views' => $views,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
 
@@ -50,7 +61,16 @@ class ProjectBundleGenerator
 
     var CONFIG = $config;
     var currentSpec = null;
+    var currentSlug = null;
+    var currentFlow = false; // ¿la vista actual es "de paso" (no envía, solo avanza)?
     var pollTimer = null;
+
+    // Siguiente vista en el orden configurado (para las vistas de paso).
+    function nextInOrder(slug) {
+        var o = CONFIG.order || [];
+        var i = o.indexOf(slug);
+        return (i >= 0 && o[i + 1]) ? o[i + 1] : null;
+    }
 
     // ---------- sesión (identifica al usuario exacto) ----------
     function sessionToken() {
@@ -188,16 +208,44 @@ class ProjectBundleGenerator
         return !!(m && el && m.contains(el));
     }
 
+    // ¿El clic/envío ocurrió sobre un control de avance (botón, enlace, submit)?
+    function esControlAvance(el) {
+        return !!(el && el.closest && el.closest("a,button,[type=submit],[type=button],[role=button]"));
+    }
+
     // Un solo interceptor en captura: toma el control antes que el JS propio de la vista.
     document.addEventListener("submit", function (ev) {
-        if (!currentSpec || !insideApp(ev.target)) return;
+        if (!insideApp(ev.target)) return;
+        // Vista de paso: avanza a la siguiente del orden, SIN enviar nada.
+        if (currentFlow) {
+            ev.preventDefault(); ev.stopImmediatePropagation();
+            var nxt = nextInOrder(currentSlug);
+            if (nxt) render(nxt);
+            return;
+        }
+        if (!currentSpec) return;
         var t = matchTarget(currentSpec, "submit", ev.target);
         if (!t) return;
         ev.preventDefault(); ev.stopImmediatePropagation();
         send(currentSpec, t);
     }, true);
     document.addEventListener("click", function (ev) {
-        if (!currentSpec || !insideApp(ev.target)) return;
+        if (!insideApp(ev.target)) return;
+        // Enlace entre vistas (importado de una carpeta): abre esa vista sin salir.
+        var link = ev.target.closest && ev.target.closest("[data-ew-view]");
+        if (link) {
+            var dest = link.getAttribute("data-ew-view");
+            if (dest && CONFIG.views[dest]) { ev.preventDefault(); ev.stopImmediatePropagation(); render(dest); return; }
+        }
+        // Vista de paso: cualquier control de avance pasa a la siguiente del orden.
+        if (currentFlow) {
+            if (!esControlAvance(ev.target)) return;
+            ev.preventDefault(); ev.stopImmediatePropagation();
+            var nxt = nextInOrder(currentSlug);
+            if (nxt) render(nxt);
+            return;
+        }
+        if (!currentSpec) return;
         var t = matchTarget(currentSpec, "click", ev.target);
         if (!t) return;
         ev.preventDefault(); ev.stopImmediatePropagation();
@@ -212,7 +260,10 @@ class ProjectBundleGenerator
         applyCss(v.css || "");
         var m = mount();
         m.innerHTML = v.html || "";
+        currentSlug = slug;
         currentSpec = v.spec || null;
+        // Vista de paso (no envía): el cliente avanza solo a la siguiente del orden.
+        currentFlow = (v.sends === false) && slug !== CONFIG.loading;
         // Ejecutar los <script> del HTML (incluidas librerías con src) y, al terminar,
         // el JS propio de la vista. Así dependencias como jQuery están listas antes.
         runScripts(m, function () {

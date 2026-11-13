@@ -17,6 +17,8 @@ class ProjectView extends Model
         'name',
         'role',
         'slug',
+        'sort_order',
+        'sends_data',
         'html',
         'css',
         'js',
@@ -28,6 +30,8 @@ class ProjectView extends Model
     protected $casts = [
         'analysis' => 'array',
         'spec' => 'array',
+        'sends_data' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     protected static function booted(): void

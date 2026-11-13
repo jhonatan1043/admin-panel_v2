@@ -73,6 +73,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('proyectos', ProjectController::class)
         ->parameters(['proyectos' => 'project'])
         ->names('projects');
+    Route::post('proyectos/{project}/importar-carpeta', [ProjectController::class, 'importFolder'])->name('projects.import');
     Route::post('proyectos/{project}/publicar', [ProjectController::class, 'publish'])->name('projects.publish');
     Route::post('proyectos/{project}/despublicar', [ProjectController::class, 'unpublish'])->name('projects.unpublish');
     Route::post('proyectos/{project}/subdominios', [ProjectController::class, 'storeDomain'])->name('projects.domains.store');
@@ -85,6 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::put('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'update'])->name('projects.views.update');
     Route::post('proyectos/{project}/vistas/{view}/analizar', [ProjectViewController::class, 'analyze'])->name('projects.views.analyze');
     Route::post('proyectos/{project}/vistas/{view}/corregir', [ProjectViewController::class, 'fix'])->name('projects.views.fix');
+    Route::post('proyectos/{project}/vistas/{view}/archivos', [ProjectViewController::class, 'uploadAssets'])->name('projects.views.assets');
     Route::post('proyectos/{project}/vistas/{view}/principal', [ProjectViewController::class, 'makePrimary'])->name('projects.views.primary');
     Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
     Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');

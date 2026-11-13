@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\ProjectDomain;
 use App\Models\ProjectView;
 use App\Models\User;
+use App\Services\Projects\ProjectFolderImporter;
 use App\Services\Projects\ProjectPublisher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,38 @@ use Illuminate\Validation\Rule;
 class ProjectController extends Controller
 {
     public function __construct(private ProjectPublisher $publisher) {}
+
+    /**
+     * Importa una carpeta completa como proyecto (modalidad aparte): ubica el index,
+     * toma cada .html como vista y resuelve sus archivos; los que no existen o pesan
+     * de más se listan como faltantes. Reemplaza las vistas estándar actuales.
+     */
+    public function importFolder(Request $request, Project $project, ProjectFolderImporter $importer)
+    {
+        $this->authorizeProject($project);
+
+        $request->validate([
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['file'],
+            'paths' => ['required', 'array'],
+            'paths.*' => ['string'],
+            'mode' => ['nullable', 'in:linked,all'],
+            'strategy' => ['nullable', 'in:replace,add'],
+        ]);
+
+        $result = $importer->import($project, $request->file('files'), (array) $request->input('paths'), [
+            'only_linked' => $request->input('mode', 'linked') !== 'all',
+            'replace' => $request->input('strategy', 'replace') !== 'add',
+        ]);
+
+        if (! empty($result['error'])) {
+            return back()->withErrors(['files' => $result['error']]);
+        }
+
+        return redirect()->route('projects.show', $project)
+            ->with('status', "Carpeta importada: {$result['views']} vista(s).")
+            ->with('import_missing', $result['missing']);
+    }
 
     public function index()
     {
