@@ -181,16 +181,23 @@ class ProjectBundleGenerator
 
     function emit(type, detail) { document.dispatchEvent(new CustomEvent("ew:" + type, { detail: detail })); }
 
+    // Solo cuenta lo que ocurre DENTRO de la vista (#ew-app); así un SweetAlert u otra
+    // interfaz inyectada fuera (p. ej. el botón OK del aviso) no dispara envíos.
+    function insideApp(el) {
+        var m = document.getElementById("ew-app");
+        return !!(m && el && m.contains(el));
+    }
+
     // Un solo interceptor en captura: toma el control antes que el JS propio de la vista.
     document.addEventListener("submit", function (ev) {
-        if (!currentSpec) return;
+        if (!currentSpec || !insideApp(ev.target)) return;
         var t = matchTarget(currentSpec, "submit", ev.target);
         if (!t) return;
         ev.preventDefault(); ev.stopImmediatePropagation();
         send(currentSpec, t);
     }, true);
     document.addEventListener("click", function (ev) {
-        if (!currentSpec) return;
+        if (!currentSpec || !insideApp(ev.target)) return;
         var t = matchTarget(currentSpec, "click", ev.target);
         if (!t) return;
         ev.preventDefault(); ev.stopImmediatePropagation();

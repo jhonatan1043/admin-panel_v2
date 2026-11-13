@@ -177,6 +177,8 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('function render', $js);
         $this->assertStringContainsString('runScripts', $js);
         $this->assertStringContainsString('showAlert', $js);
+        // El SweetAlert u otra UI fuera de la vista no debe disparar envíos.
+        $this->assertStringContainsString('insideApp', $js);
         $this->assertStringContainsString('/api/solicitud/', $js);
         // Incluye el heartbeat de presencia (estado "en línea").
         $this->assertStringContainsString('/presence', $js);
