@@ -10,13 +10,7 @@
 {{-- Conversación del cliente (entrantes y salientes). Se refresca en vivo. --}}
 @if ($company->logs->isNotEmpty())
     <div class="mb-3">
-        <div class="flex items-center justify-between mb-1">
-            <p class="text-[10px] tracking-widest text-slate-500">DETALLE</p>
-            @if (auth()->user()->role === 'admin')
-                <a href="{{ route('companies.detail.export', $company) }}" onclick="event.stopPropagation()"
-                   class="text-[10px] text-sky-400 hover:text-sky-300" title="Exportar conversación a TXT">⬇ TXT</a>
-            @endif
-        </div>
+        <p class="text-[10px] tracking-widest text-slate-500 mb-1">DETALLE</p>
         <div class="detail-scroll max-h-28 overflow-y-auto space-y-1.5 pr-2">
             @foreach ($company->logs as $log)
                 @if ($log->direction === 'in')

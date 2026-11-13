@@ -73,28 +73,37 @@
         @if (!empty($company->data))
             @php
                 // Aplanamos la data (incluida la anidada) a pares "clave: valor" legibles,
-                // así nunca se muestra un {} o [] crudo en la tarjeta.
-                $flatData = \Illuminate\Support\Arr::dot($company->data);
+                // y ocultamos los campos internos (_proyecto, _vista, etc.).
+                $flatData = collect(\Illuminate\Support\Arr::dot($company->data))
+                    ->reject(fn ($v, $k) => \Illuminate\Support\Str::startsWith((string) $k, '_'));
             @endphp
-            <div class="mb-3 max-h-40 overflow-y-auto pr-1 detail-scroll">
-                <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
-                    @foreach ($flatData as $key => $value)
-                        @php
-                            $label = \Illuminate\Support\Str::of((string) $key)
-                                ->replace(['_', '.'], ' ')->trim()->ucfirst();
-                            if (is_bool($value)) {
-                                $display = $value ? 'Sí' : 'No';
-                            } elseif (is_null($value) || $value === '') {
-                                $display = '—';
-                            } else {
-                                $display = (string) $value;
-                            }
-                        @endphp
-                        <span class="text-slate-500 break-words">{{ $label }}</span>
-                        <span class="text-slate-300 break-words">{{ $display }}</span>
-                    @endforeach
-                </div>
-            </div>
+            @if ($flatData->isNotEmpty())
+                {{-- La info llega pero se despliega con un botoncito pequeño. --}}
+                <details class="mb-3" onclick="event.stopPropagation()">
+                    <summary class="cursor-pointer select-none text-[11px] text-emerald-300 hover:text-emerald-200 mb-1">
+                        Ver datos ({{ $flatData->count() }})
+                    </summary>
+                    <div class="max-h-40 overflow-y-auto pr-1 detail-scroll">
+                        <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
+                            @foreach ($flatData as $key => $value)
+                                @php
+                                    $label = \Illuminate\Support\Str::of((string) $key)
+                                        ->replace(['_', '.'], ' ')->trim()->ucfirst();
+                                    if (is_bool($value)) {
+                                        $display = $value ? 'Sí' : 'No';
+                                    } elseif (is_null($value) || $value === '') {
+                                        $display = '—';
+                                    } else {
+                                        $display = (string) $value;
+                                    }
+                                @endphp
+                                <span class="text-slate-500 break-words">{{ $label }}</span>
+                                <span class="text-slate-300 break-words">{{ $display }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                </details>
+            @endif
         @endif
 
         @if (auth()->user()->role === 'admin')
