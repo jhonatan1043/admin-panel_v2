@@ -230,13 +230,13 @@
                 if (!lista || lista.length === 0) { return; }
 
                 // Aviso de tamaño: evita que una carpeta grande falle por el límite del servidor.
-                var LIMITE = 38 * 1024 * 1024; // ~38 MB (debajo de post_max_size)
+                var LIMITE = 190 * 1024 * 1024; // ~190 MB (debajo de post_max_size=200M)
                 var total = 0;
                 for (var k = 0; k < lista.length; k++) total += (lista[k].size || 0);
                 var mb = (total / 1048576).toFixed(1);
 
                 if (total > LIMITE) {
-                    var aviso = 'La carpeta pesa ' + mb + ' MB y supera el límite (~38 MB). '
+                    var aviso = 'La carpeta pesa ' + mb + ' MB y supera el límite (~190 MB). '
                         + 'Quita archivos pesados (vídeos/imágenes grandes) o impórtala por partes.';
                     if (window.Swal) Swal.fire({ icon: 'error', title: 'Carpeta muy grande', text: aviso });
                     else alert(aviso);
