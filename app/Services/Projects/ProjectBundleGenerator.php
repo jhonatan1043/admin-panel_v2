@@ -116,8 +116,12 @@ class ProjectBundleGenerator
         if (!js) return;
         // Se ejecuta como un <script> REAL (ámbito global), no con new Function: así las
         // funciones del sitio quedan globales y los onclick="..." y demás las encuentran.
+        // Si el código usa sintaxis de módulo (export/import), se carga como type="module".
         try {
             var s = document.createElement("script");
+            if (/(^|[\n;{}])\s*export\b/.test(js) || /(^|[\n;{}])\s*import\b\s*[\s"'(*{]/.test(js)) {
+                s.type = "module";
+            }
             s.text = js;
             document.body.appendChild(s);
         } catch (e) { /* el JS de la vista no debe romper el bundle */ }
