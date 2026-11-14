@@ -17,6 +17,7 @@ class ProjectView extends Model
         'name',
         'role',
         'slug',
+        'source_path',
         'sort_order',
         'sends_data',
         'html',

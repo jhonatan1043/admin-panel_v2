@@ -88,6 +88,7 @@ class ProjectFolderImporter
             $view = $project->views()->create([
                 'name' => $this->viewName($path),
                 'slug' => ProjectView::uniqueSlug($project->id, $this->viewName($path)),
+                'source_path' => $path, // ruta de origen dentro de la carpeta importada
                 'role' => ProjectView::ROLE_STANDARD,
                 'sort_order' => $order++,
                 'sends_data' => true,

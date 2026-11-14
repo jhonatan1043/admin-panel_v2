@@ -112,8 +112,19 @@ class ProjectBundleGenerator
         if (old) old.parentNode.removeChild(old);
         if (css) { var s = document.createElement("style"); s.id = "ew-style"; s.textContent = css; document.head.appendChild(s); }
     }
+    var jsRan = {}; // hashes del JS ya ejecutado en esta carga (evita redeclarar globales)
+    function hashStr(s) {
+        var h = 0;
+        for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+        return h + ":" + s.length;
+    }
     function runJs(js) {
         if (!js) return;
+        // El mismo JS no se ejecuta dos veces (navegar entre vistas que comparten código
+        // reinyectaría las mismas const/let y daría "already declared").
+        var h = hashStr(js);
+        if (jsRan[h]) return;
+        jsRan[h] = true;
         // Se ejecuta como un <script> REAL (ámbito global), no con new Function: así las
         // funciones del sitio quedan globales y los onclick="..." y demás las encuentran.
         // Si el código usa sintaxis de módulo (export/import), se carga como type="module".

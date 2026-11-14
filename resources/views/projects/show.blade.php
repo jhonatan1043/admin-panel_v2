@@ -95,6 +95,16 @@
                                 <span class="text-amber-400">· sin integrar</span>
                             @endif
                         </div>
+                        @if ($view->source_path)
+                            @php
+                                $carpeta = \Illuminate\Support\Str::contains($view->source_path, '/')
+                                    ? \Illuminate\Support\Str::beforeLast($view->source_path, '/')
+                                    : '(raíz)';
+                            @endphp
+                            <div class="text-[10px] text-slate-600 mt-0.5" title="Archivo de origen: {{ $view->source_path }}">
+                                📁 {{ $carpeta }} · {{ \Illuminate\Support\Str::afterLast($view->source_path, '/') }}
+                            </div>
+                        @endif
                     </div>
                     <div class="shrink-0 flex items-center gap-2">
                         {{-- Envía datos (captura) o es vista de paso (no envía a la base/Telegram). --}}
