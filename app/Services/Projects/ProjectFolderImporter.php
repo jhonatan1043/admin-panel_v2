@@ -5,6 +5,7 @@ namespace App\Services\Projects;
 use App\Models\Project;
 use App\Models\ProjectView;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 
 /**
  * Importa una CARPETA completa como proyecto:
@@ -33,6 +34,9 @@ class ProjectFolderImporter
         'eot' => 'application/vnd.ms-fontobject',
     ];
 
+    /** Carpeta raíz de la importación (para resolver rutas absolutas "/..."). */
+    private string $root = '';
+
     public function __construct(private ViewIntegrator $integrator) {}
 
     /**
@@ -46,6 +50,14 @@ class ProjectFolderImporter
         $replace = $options['replace'] ?? true;
 
         [$byPath, $oversizePaths] = $this->indexFiles($files, $paths);
+
+        // Raíz del sitio = carpeta superior común (todas las rutas la comparten al subir
+        // la carpeta). Sirve para resolver rutas absolutas que empiezan con "/".
+        $this->root = '';
+        $primera = (string) array_key_first($byPath);
+        if ($primera !== '' && str_contains($primera, '/')) {
+            $this->root = Str::before($primera, '/');
+        }
 
         $htmlSet = [];
         foreach (array_keys($byPath) as $p) {
@@ -218,6 +230,8 @@ class ProjectFolderImporter
 
         // <link>: si es CSS se fusiona (resolviendo sus url() relativas a ESE css) y se
         // quita; si es imagen/fuente (p. ej. favicon) se incrusta en el href.
+        // Se fusiona cada archivo UNA sola vez (aunque se referencie con varias rutas).
+        $cssYaFusionado = [];
         foreach ($this->tagRefs($html, 'link', 'href') as $ref) {
             $resolved = $this->resolve($dir, $ref);
             if ($resolved === null) {
@@ -226,7 +240,10 @@ class ProjectFolderImporter
             $file = $byPath[$resolved] ?? null;
             $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? self::FONT_MIME[$file['ext']] ?? null) : null;
             if ($file && $file['ext'] === 'css') {
-                $css = $this->joinText([$css, $this->inlineCssUrls($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing)]);
+                if (! isset($cssYaFusionado[$resolved])) {
+                    $css = $this->joinText([$css, $this->inlineCssUrls($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing)]);
+                    $cssYaFusionado[$resolved] = true;
+                }
                 $html = $this->stripTag($html, 'link', 'href', $ref);
             } elseif ($file && $mime !== null) {
                 $html = $this->replaceRef($html, $ref, 'data:'.$mime.';base64,'.base64_encode($file['contents']));
@@ -235,7 +252,8 @@ class ProjectFolderImporter
             }
         }
 
-        // <script src>: se fusiona su contenido y se quita la etiqueta.
+        // <script src>: se fusiona su contenido UNA vez y se quita la etiqueta.
+        $jsYaFusionado = [];
         foreach ($this->tagRefs($html, 'script', 'src') as $ref) {
             $resolved = $this->resolve($dir, $ref);
             if ($resolved === null) {
@@ -243,7 +261,10 @@ class ProjectFolderImporter
             }
             $file = $byPath[$resolved] ?? null;
             if ($file && $file['ext'] === 'js') {
-                $js = $this->joinText([$js, $file['contents']]);
+                if (! isset($jsYaFusionado[$resolved])) {
+                    $js = $this->joinText([$js, $file['contents']]);
+                    $jsYaFusionado[$resolved] = true;
+                }
                 $html = $this->stripTag($html, 'script', 'src', $ref);
             } else {
                 $missing[] = $this->miss($resolved, $oversize);
@@ -362,7 +383,12 @@ class ProjectFolderImporter
             return null;
         }
 
-        $full = ($dir !== '' ? $dir.'/' : '').$ref;
+        if (str_starts_with($ref, '/')) {
+            // Ruta absoluta del sitio ("/assets/..."): se resuelve desde la raíz importada.
+            $full = $this->root.$ref;
+        } else {
+            $full = ($dir !== '' ? $dir.'/' : '').$ref;
+        }
 
         return $this->normalize($full);
     }

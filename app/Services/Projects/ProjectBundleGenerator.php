@@ -289,12 +289,6 @@ class ProjectBundleGenerator
         // el JS propio de la vista. Así dependencias como jQuery están listas antes.
         runScripts(m, function () {
             runJs(v.js || "");
-            // Muchos sitios inicializan en DOMContentLoaded / load; como el documento ya
-            // cargó, esos handlers no se dispararían. Los emitimos para que corra su init.
-            try {
-                document.dispatchEvent(new Event("DOMContentLoaded"));
-                window.dispatchEvent(new Event("load"));
-            } catch (e) {}
             emit("view", { view: slug });
             if (slug === CONFIG.loading) startPoll();
         });

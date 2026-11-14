@@ -687,6 +687,27 @@ class ProjectModuleTest extends TestCase
         $this->assertSame(0, $project->fresh()->views()->where('role', \App\Models\ProjectView::ROLE_STANDARD)->count());
     }
 
+    public function test_importar_carpeta_resuelve_rutas_absolutas_del_sitio(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Absolutas'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Absolutas');
+
+        // El index está en una subcarpeta y referencia con ruta ABSOLUTA del sitio (/assets/...).
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', '<img src="/assets/logo.png"><div>hola</div>'),
+            UploadedFile::fake()->createWithContent('logo.png', 'LOGO'),
+        ];
+        $paths = ['sitio/pages/index.html', 'sitio/assets/logo.png'];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), ['files' => $files, 'paths' => $paths])
+            ->assertRedirect();
+
+        $this->assertEmpty(session('import_missing')); // /assets/logo.png se resolvió desde la raíz
+        $index = $project->fresh()->indexView();
+        $this->assertStringContainsString('data:image/png;base64,', $index->html);
+    }
+
     public function test_importar_carpeta_lee_subcarpetas_anidadas(): void
     {
         $admin = $this->admin();
