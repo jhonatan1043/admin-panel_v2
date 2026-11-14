@@ -141,8 +141,11 @@ class ProjectBundleGenerator
     // como nodos reales para que corran: primero los <script src> (librerías) en
     // orden, luego los <script> en línea, y al final el JS propio de la vista.
     function runScripts(container, done) {
+        // Solo los <script src> (librerías externas); los <script> en línea NO se ejecutan
+        // aquí: su código ya está en el JS de la vista (v.js), y ejecutarlos además
+        // duplicaría declaraciones ("already declared").
         var list = [];
-        var found = container.querySelectorAll("script");
+        var found = container.querySelectorAll("script[src]");
         for (var i = 0; i < found.length; i++) list.push(found[i]);
         var idx = 0;
         function next() {
@@ -150,10 +153,9 @@ class ProjectBundleGenerator
             var old = list[idx++];
             var s = document.createElement("script");
             for (var a = 0; a < old.attributes.length; a++) s.setAttribute(old.attributes[a].name, old.attributes[a].value);
-            var src = old.getAttribute("src");
             if (old.parentNode) old.parentNode.removeChild(old);
-            if (src) { s.onload = next; s.onerror = next; document.body.appendChild(s); }
-            else { s.text = old.textContent || ""; document.body.appendChild(s); next(); }
+            s.onload = next; s.onerror = next;
+            document.body.appendChild(s);
         }
         next();
     }
