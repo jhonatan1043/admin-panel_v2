@@ -708,6 +708,29 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('data:image/png;base64,', $index->html);
     }
 
+    public function test_importar_carpeta_ignora_el_script_nomodule_duplicado(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Diff'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Diff');
+
+        // Patrón "differential serving": el mismo app en versión module y nomodule.
+        $index = '<script type="module" src="app.js"></script><script nomodule src="legacy.js"></script><div>x</div>';
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', $index),
+            UploadedFile::fake()->createWithContent('app.js', 'window.MARCA_MODULE=1;'),
+            UploadedFile::fake()->createWithContent('legacy.js', 'window.MARCA_LEGACY=1;'),
+        ];
+        $paths = ['sitio/index.html', 'sitio/app.js', 'sitio/legacy.js'];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), ['files' => $files, 'paths' => $paths])->assertRedirect();
+
+        $index = $project->fresh()->indexView();
+        // Solo entra la versión module; la nomodule (legacy) se ignora para no duplicar.
+        $this->assertStringContainsString('window.MARCA_MODULE=1;', (string) $index->js);
+        $this->assertStringNotContainsString('window.MARCA_LEGACY=1;', (string) $index->js);
+    }
+
     public function test_importar_carpeta_lee_subcarpetas_anidadas(): void
     {
         $admin = $this->admin();

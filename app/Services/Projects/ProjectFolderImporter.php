@@ -217,6 +217,11 @@ class ProjectFolderImporter
         // <base> rompe la resolución de rutas relativas y el embed: se quita.
         // (Los link/script/img comentados SÍ se procesan: el archivo igual se incrusta.)
         $html = (string) preg_replace('/<base\b[^>]*>/i', '', $html);
+        // Sitios con "differential serving" traen el bundle dos veces: <script type="module">
+        // y <script nomodule> (versión antigua). Se quita el nomodule para no fusionar dos
+        // veces el mismo código (daría "Identifier ... already declared").
+        $html = (string) preg_replace('/<script\b[^>]*\bnomodule\b[^>]*>.*?<\/script>/is', '', $html);
+        $html = (string) preg_replace('/<script\b[^>]*\bnomodule\b[^>]*>/i', '', $html);
 
         [$html, $css, $js] = $this->splitInline($html);
         $missing = [];
