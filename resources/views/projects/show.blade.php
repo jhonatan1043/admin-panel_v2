@@ -97,6 +97,17 @@
                         </div>
                     </div>
                     <div class="shrink-0 flex items-center gap-2">
+                        {{-- Envía datos (captura) o es vista de paso (no envía a la base/Telegram). --}}
+                        <form method="POST" action="{{ route('projects.views.sends', [$project, $view]) }}">
+                            @csrf
+                            @if ($view->sends_data)
+                                <button class="text-xs border border-emerald-600/50 text-emerald-300 hover:bg-emerald-500/10 px-3 py-1.5 rounded"
+                                        title="Envía los datos. Clic para marcarla como vista de paso (no envía).">Envía datos</button>
+                            @else
+                                <button class="text-xs border border-slate-600 text-slate-400 hover:bg-white/5 px-3 py-1.5 rounded"
+                                        title="Vista de paso: no envía. Clic para que envíe los datos.">De paso (no envía)</button>
+                            @endif
+                        </form>
                         @unless ($esPrincipal)
                             <form method="POST" action="{{ route('projects.views.primary', [$project, $view]) }}">
                                 @csrf

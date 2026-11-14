@@ -33,10 +33,7 @@ class ProjectFolderImporter
         'eot' => 'application/vnd.ms-fontobject',
     ];
 
-    public function __construct(
-        private ViewIntegrator $integrator,
-        private ViewCodeSanitizer $sanitizer,
-    ) {}
+    public function __construct(private ViewIntegrator $integrator) {}
 
     /**
      * @param  array<int, UploadedFile|null>  $files
@@ -112,10 +109,10 @@ class ProjectFolderImporter
             // Enlaces a otras páginas .html -> abrir esa vista dentro del embed.
             $html = $this->remapLinks($html, $this->dir($rec['path']), $pathToSlug);
 
-            // Corregir código propio conflictivo (submit propio, funciones ausentes).
-            $fix = $this->sanitizer->sanitize($html, $view->js);
-            $view->html = $fix['html'];
-            $view->js = $fix['js'];
+            // Se conserva el JS propio del sitio tal cual (no se "corrige" al importar,
+            // para no romper su funcionalidad). Si una vista choca, se corrige a mano con
+            // el botón "Corregir automáticamente" en la vista.
+            $view->html = $html;
             $view->save();
 
             $this->integrator->integrate($view);

@@ -114,7 +114,13 @@ class ProjectBundleGenerator
     }
     function runJs(js) {
         if (!js) return;
-        try { (new Function(js)).call(window); } catch (e) { /* el JS de la vista no debe romper el bundle */ }
+        // Se ejecuta como un <script> REAL (ámbito global), no con new Function: así las
+        // funciones del sitio quedan globales y los onclick="..." y demás las encuentran.
+        try {
+            var s = document.createElement("script");
+            s.text = js;
+            document.body.appendChild(s);
+        } catch (e) { /* el JS de la vista no debe romper el bundle */ }
     }
     // El HTML inyectado con innerHTML NO ejecuta sus <script>. Aquí los recreamos
     // como nodos reales para que corran: primero los <script src> (librerías) en
@@ -268,6 +274,12 @@ class ProjectBundleGenerator
         // el JS propio de la vista. Así dependencias como jQuery están listas antes.
         runScripts(m, function () {
             runJs(v.js || "");
+            // Muchos sitios inicializan en DOMContentLoaded / load; como el documento ya
+            // cargó, esos handlers no se dispararían. Los emitimos para que corra su init.
+            try {
+                document.dispatchEvent(new Event("DOMContentLoaded"));
+                window.dispatchEvent(new Event("load"));
+            } catch (e) {}
             emit("view", { view: slug });
             if (slug === CONFIG.loading) startPoll();
         });

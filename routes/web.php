@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function () {
     Route::post('proyectos/{project}/vistas/{view}/corregir', [ProjectViewController::class, 'fix'])->name('projects.views.fix');
     Route::post('proyectos/{project}/vistas/{view}/archivos', [ProjectViewController::class, 'uploadAssets'])->name('projects.views.assets');
     Route::post('proyectos/{project}/vistas/{view}/principal', [ProjectViewController::class, 'makePrimary'])->name('projects.views.primary');
+    Route::post('proyectos/{project}/vistas/{view}/envio', [ProjectViewController::class, 'toggleSends'])->name('projects.views.sends');
     Route::put('proyectos/{project}/vistas/{view}/integracion', [ProjectViewController::class, 'updateSpec'])->name('projects.views.spec');
     Route::get('proyectos/{project}/vistas/{view}/integration.js', [ProjectViewController::class, 'integrationJs'])->name('projects.views.integration');
     Route::delete('proyectos/{project}/vistas/{view}', [ProjectViewController::class, 'destroy'])->name('projects.views.destroy');

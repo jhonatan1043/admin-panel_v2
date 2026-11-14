@@ -744,6 +744,20 @@ class ProjectModuleTest extends TestCase
         $this->assertStringNotContainsString('iconos/logo.svg', $view->html);
     }
 
+    public function test_alternar_envia_datos_desde_la_lista(): void
+    {
+        [$admin, $project] = $this->makeIntegratedProject();
+        $view = $project->views->first();
+
+        $this->assertTrue($view->sends_data); // por defecto envía
+
+        $this->actingAs($admin)->post(route('projects.views.sends', [$project, $view]))->assertRedirect();
+        $this->assertFalse($view->fresh()->sends_data); // ahora de paso
+
+        $this->actingAs($admin)->post(route('projects.views.sends', [$project, $view]))->assertRedirect();
+        $this->assertTrue($view->fresh()->sends_data); // de nuevo envía
+    }
+
     public function test_un_boton_de_vista_normal_no_muestra_mensaje(): void
     {
         [$admin, $project] = $this->makeIntegratedProject();

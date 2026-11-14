@@ -254,6 +254,20 @@ class ProjectViewController extends Controller
         return back()->with('status', "«{$view->name}» es ahora la vista principal.");
     }
 
+    /** Alterna si la vista envía datos (captura) o es de paso (no envía a la base/Telegram). */
+    public function toggleSends(Project $project, ProjectView $view)
+    {
+        abort_unless($project->managedBy(auth()->user()), 403);
+        abort_unless($view->project_id === $project->id, 404);
+
+        $view->sends_data = ! $view->sends_data;
+        $view->save();
+
+        $estado = $view->sends_data ? 'ahora envía los datos' : 'es ahora una vista de paso (no envía)';
+
+        return back()->with('status', "«{$view->name}» {$estado}.");
+    }
+
     /** Vuelve a analizar la vista y regenera integration.js. */
     public function analyze(Project $project, ProjectView $view)
     {
