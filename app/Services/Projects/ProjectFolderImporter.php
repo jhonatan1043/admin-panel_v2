@@ -261,10 +261,12 @@ class ProjectFolderImporter
             }
             $file = $byPath[$resolved] ?? null;
             if ($file && $file['ext'] === 'js') {
-                if (! isset($jsYaFusionado[$resolved])) {
-                    $js = $this->joinText([$js, $file['contents']]);
-                    $jsYaFusionado[$resolved] = true;
+                $contenido = trim($file['contents']);
+                // Solo se añade si no está ya (mismo archivo por otra ruta, o igual a un inline).
+                if (! isset($jsYaFusionado[$resolved]) && $contenido !== '' && ! str_contains($js, $contenido)) {
+                    $js = $this->joinText([$js, $contenido]);
                 }
+                $jsYaFusionado[$resolved] = true;
                 $html = $this->stripTag($html, 'script', 'src', $ref);
             } else {
                 $missing[] = $this->miss($resolved, $oversize);
@@ -347,7 +349,9 @@ class ProjectFolderImporter
             $html = (string) preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
         }
         if (preg_match_all('/<script\b(?![^>]*\bsrc=)[^>]*>(.*?)<\/script>/is', $html, $m) && $m[1] !== []) {
-            $js = trim(implode("\n", array_map('trim', $m[1])));
+            // Dedup de bloques inline idénticos (evita declarar dos veces las mismas const).
+            $bloques = array_values(array_unique(array_filter(array_map('trim', $m[1]), fn ($b) => $b !== '')));
+            $js = implode("\n", $bloques);
             $html = (string) preg_replace('/<script\b(?![^>]*\bsrc=)[^>]*>.*?<\/script>/is', '', $html);
         }
 
