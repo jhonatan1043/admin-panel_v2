@@ -105,6 +105,24 @@
                                 📁 {{ $carpeta }} · {{ \Illuminate\Support\Str::afterLast($view->source_path, '/') }}
                             </div>
                         @endif
+                        @if (! empty($view->assets))
+                            @php $grupos = collect($view->assets)->groupBy('type'); @endphp
+                            <details class="mt-1" onclick="event.stopPropagation()">
+                                <summary class="cursor-pointer select-none text-[10px] text-sky-400 hover:text-sky-300">
+                                    Archivos asociados ({{ count($view->assets) }})
+                                </summary>
+                                <div class="mt-1 pl-2 border-l border-slate-700 space-y-0.5 text-[10px]">
+                                    @foreach (['css' => 'CSS', 'js' => 'JS', 'imagen' => 'Imágenes', 'fuente' => 'Fuentes'] as $tipo => $etiqueta)
+                                        @if ($grupos->has($tipo))
+                                            <div>
+                                                <span class="text-slate-400">{{ $etiqueta }} ({{ $grupos[$tipo]->count() }}):</span>
+                                                <span class="text-slate-500 font-mono break-all">{{ $grupos[$tipo]->pluck('name')->implode(', ') }}</span>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </details>
+                        @endif
                     </div>
                     <div class="shrink-0 flex items-center gap-2">
                         {{-- Envía datos (captura) o es vista de paso (no envía a la base/Telegram). --}}

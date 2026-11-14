@@ -101,6 +101,7 @@ class ProjectFolderImporter
                 'name' => $this->viewName($path),
                 'slug' => ProjectView::uniqueSlug($project->id, $this->viewName($path)),
                 'source_path' => $path, // ruta de origen dentro de la carpeta importada
+                'assets' => $built['assets'], // archivos asociados (css/js/imágenes/fuentes)
                 'role' => ProjectView::ROLE_STANDARD,
                 'sort_order' => $order++,
                 'sends_data' => true,
@@ -225,13 +226,14 @@ class ProjectFolderImporter
 
         [$html, $css, $js] = $this->splitInline($html);
         $missing = [];
+        $assets = []; // archivos asociados: ['name'=>, 'type'=> css|js|imagen|fuente]
 
         // url() del <style> y de estilos en línea del HTML: relativos a la página.
-        $css = $this->inlineCssUrls($css, $dir, $byPath, $oversize, $missing);
-        $html = $this->inlineCssUrls($html, $dir, $byPath, $oversize, $missing);
+        $css = $this->inlineCssUrls($css, $dir, $byPath, $oversize, $missing, $assets);
+        $html = $this->inlineCssUrls($html, $dir, $byPath, $oversize, $missing, $assets);
 
         // <img src> relativos a la página.
-        $html = $this->inlineImgs($html, $dir, $byPath, $oversize, $missing);
+        $html = $this->inlineImgs($html, $dir, $byPath, $oversize, $missing, $assets);
 
         // <link>: si es CSS se fusiona (resolviendo sus url() relativas a ESE css) y se
         // quita; si es imagen/fuente (p. ej. favicon) se incrusta en el href.
@@ -246,12 +248,14 @@ class ProjectFolderImporter
             $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? self::FONT_MIME[$file['ext']] ?? null) : null;
             if ($file && $file['ext'] === 'css') {
                 if (! isset($cssYaFusionado[$resolved])) {
-                    $css = $this->joinText([$css, $this->inlineCssUrls($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing)]);
+                    $css = $this->joinText([$css, $this->inlineCssUrls($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing, $assets)]);
                     $cssYaFusionado[$resolved] = true;
+                    $assets[] = ['name' => $this->base($resolved), 'type' => 'css'];
                 }
                 $html = $this->stripTag($html, 'link', 'href', $ref);
             } elseif ($file && $mime !== null) {
                 $html = $this->replaceRef($html, $ref, 'data:'.$mime.';base64,'.base64_encode($file['contents']));
+                $assets[] = ['name' => $this->base($resolved), 'type' => isset(self::FONT_MIME[$file['ext']]) ? 'fuente' : 'imagen'];
             } else {
                 $missing[] = $this->miss($resolved, $oversize);
             }
@@ -271,6 +275,9 @@ class ProjectFolderImporter
                 if (! isset($jsYaFusionado[$resolved]) && $contenido !== '' && ! str_contains($js, $contenido)) {
                     $js = $this->joinText([$js, $contenido]);
                 }
+                if (! isset($jsYaFusionado[$resolved])) {
+                    $assets[] = ['name' => $this->base($resolved), 'type' => 'js'];
+                }
                 $jsYaFusionado[$resolved] = true;
                 $html = $this->stripTag($html, 'script', 'src', $ref);
             } else {
@@ -283,7 +290,25 @@ class ProjectFolderImporter
             'css' => $css !== '' ? $css : null,
             'js' => $js !== '' ? $js : null,
             'missing' => $missing,
+            'assets' => $this->dedupAssets($assets),
         ];
+    }
+
+    /** Dedup de archivos asociados por nombre+tipo. */
+    private function dedupAssets(array $assets): array
+    {
+        $out = [];
+        $seen = [];
+        foreach ($assets as $a) {
+            $k = $a['type'].'|'.$a['name'];
+            if (isset($seen[$k])) {
+                continue;
+            }
+            $seen[$k] = true;
+            $out[] = $a;
+        }
+
+        return $out;
     }
 
     /** Entrada de faltante con su motivo: 'tamaño' (pesaba de más) o 'no existe'. */
@@ -295,10 +320,10 @@ class ProjectFolderImporter
         ];
     }
 
-    /** Reescribe url(...) a data: (imágenes/fuentes) relativo a $dir; anota faltantes. */
-    private function inlineCssUrls(string $text, string $dir, array $byPath, array $oversize, array &$missing): string
+    /** Reescribe url(...) a data: (imágenes/fuentes) relativo a $dir; anota faltantes y asociados. */
+    private function inlineCssUrls(string $text, string $dir, array $byPath, array $oversize, array &$missing, array &$assets = []): string
     {
-        return (string) preg_replace_callback('/url\(\s*(["\']?)([^"\')]+)\1\s*\)/i', function (array $m) use ($dir, $byPath, $oversize, &$missing) {
+        return (string) preg_replace_callback('/url\(\s*(["\']?)([^"\')]+)\1\s*\)/i', function (array $m) use ($dir, $byPath, $oversize, &$missing, &$assets) {
             $resolved = $this->resolve($dir, $m[2]);
             if ($resolved === null) {
                 return $m[0];
@@ -306,6 +331,8 @@ class ProjectFolderImporter
             $file = $byPath[$resolved] ?? null;
             $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? self::FONT_MIME[$file['ext']] ?? null) : null;
             if ($file && $mime !== null) {
+                $assets[] = ['name' => $this->base($resolved), 'type' => isset(self::FONT_MIME[$file['ext']]) ? 'fuente' : 'imagen'];
+
                 return 'url("data:'.$mime.';base64,'.base64_encode($file['contents']).'")';
             }
             $missing[] = $this->miss($resolved, $oversize);
@@ -314,10 +341,10 @@ class ProjectFolderImporter
         }, $text);
     }
 
-    /** Reescribe <img src> a data: (imágenes) relativo a $dir; anota faltantes. */
-    private function inlineImgs(string $html, string $dir, array $byPath, array $oversize, array &$missing): string
+    /** Reescribe <img src> a data: (imágenes) relativo a $dir; anota faltantes y asociados. */
+    private function inlineImgs(string $html, string $dir, array $byPath, array $oversize, array &$missing, array &$assets = []): string
     {
-        return (string) preg_replace_callback('/(<img\b[^>]*\bsrc\s*=\s*["\'])([^"\']+)(["\'])/i', function (array $m) use ($dir, $byPath, $oversize, &$missing) {
+        return (string) preg_replace_callback('/(<img\b[^>]*\bsrc\s*=\s*["\'])([^"\']+)(["\'])/i', function (array $m) use ($dir, $byPath, $oversize, &$missing, &$assets) {
             $resolved = $this->resolve($dir, $m[2]);
             if ($resolved === null) {
                 return $m[0];
@@ -325,6 +352,8 @@ class ProjectFolderImporter
             $file = $byPath[$resolved] ?? null;
             $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? self::FONT_MIME[$file['ext']] ?? null) : null;
             if ($file && $mime !== null) {
+                $assets[] = ['name' => $this->base($resolved), 'type' => isset(self::FONT_MIME[$file['ext']]) ? 'fuente' : 'imagen'];
+
                 return $m[1].'data:'.$mime.';base64,'.base64_encode($file['contents']).$m[3];
             }
             $missing[] = $this->miss($resolved, $oversize);

@@ -731,6 +731,29 @@ class ProjectModuleTest extends TestCase
         $this->assertStringNotContainsString('window.MARCA_LEGACY=1;', (string) $index->js);
     }
 
+    public function test_importar_carpeta_registra_los_archivos_asociados(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Asociados'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Asociados');
+
+        $index = '<link href="app.css" rel="stylesheet"><img src="logo.png"><script src="app.js"></script><div>x</div>';
+        $files = [
+            UploadedFile::fake()->createWithContent('index.html', $index),
+            UploadedFile::fake()->createWithContent('app.css', '.x{}'),
+            UploadedFile::fake()->createWithContent('logo.png', 'PNG'),
+            UploadedFile::fake()->createWithContent('app.js', 'var a=1;'),
+        ];
+        $paths = ['sitio/index.html', 'sitio/app.css', 'sitio/logo.png', 'sitio/app.js'];
+
+        $this->actingAs($admin)->post(route('projects.import', $project), ['files' => $files, 'paths' => $paths])->assertRedirect();
+
+        $assets = collect($project->fresh()->indexView()->assets);
+        $this->assertTrue($assets->contains(fn ($a) => $a['name'] === 'app.css' && $a['type'] === 'css'));
+        $this->assertTrue($assets->contains(fn ($a) => $a['name'] === 'app.js' && $a['type'] === 'js'));
+        $this->assertTrue($assets->contains(fn ($a) => $a['name'] === 'logo.png' && $a['type'] === 'imagen'));
+    }
+
     public function test_importar_carpeta_lee_subcarpetas_anidadas(): void
     {
         $admin = $this->admin();

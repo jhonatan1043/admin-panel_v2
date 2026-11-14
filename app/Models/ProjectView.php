@@ -18,6 +18,7 @@ class ProjectView extends Model
         'role',
         'slug',
         'source_path',
+        'assets',
         'sort_order',
         'sends_data',
         'html',
@@ -31,6 +32,7 @@ class ProjectView extends Model
     protected $casts = [
         'analysis' => 'array',
         'spec' => 'array',
+        'assets' => 'array',
         'sends_data' => 'boolean',
         'sort_order' => 'integer',
     ];
