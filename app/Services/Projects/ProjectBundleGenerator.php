@@ -119,8 +119,8 @@ class ProjectBundleGenerator
         // Si el código usa sintaxis de módulo (export/import), se carga como type="module".
         try {
             var s = document.createElement("script");
-            if (/(^|[\n;{}])\s*export\b/.test(js) || /(^|[\n;{}])\s*import\b\s*[\s"'(*{]/.test(js)) {
-                s.type = "module";
+            if (/\bexport\s/.test(js) || /\bexport\{/.test(js) || /\bimport\s+[\w{*'"]/.test(js) || /\bimport\{/.test(js)) {
+                s.type = "module"; // el código usa sintaxis de módulo ES
             }
             s.text = js;
             document.body.appendChild(s);
