@@ -220,15 +220,10 @@
             setInterval(refrescarDetalle, 4000);
         })();
 
-        // Alarma de vencimiento: cuando una opción con vencimiento ya venció, avisa
-        // con un sonido (beeps) durante 30s y marca la tarjeta hasta que se silencie.
+        // Código pendiente: marca la tarjeta de morado. Durante una ventana corta (10s)
+        // parpadea con letrero; luego queda de color fijo. El pito agudo repetitivo suena
+        // todo el tiempo hasta que el operador marca "Atendido".
         (function () {
-            var DURACION_MS = 30000;   // la alarma (sonido + aviso) dura 30s y luego se quita sola
-            var acked = new Set();     // vencimientos ya silenciados
-            var seen = new Set();      // vencimientos ya detectados (para no re-sonar)
-            var episodeUntil = {};     // clave => instante en que la alarma se autolimpia
-            var soundUntil = 0;        // hasta cuándo debe sonar
-            var beepTimer = null;
             var audioCtx = null;
 
             function getCtx() {
@@ -238,31 +233,6 @@
                 }
                 if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 return audioCtx;
-            }
-
-            function beep() {
-                var ctx = getCtx();
-                if (!ctx) return;
-                var osc = ctx.createOscillator();
-                var gain = ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-                osc.connect(gain).connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.26);
-            }
-
-            function startBeeping() {
-                if (beepTimer) return;
-                beep();
-                beepTimer = setInterval(beep, 600);
-            }
-
-            function stopBeeping() {
-                if (beepTimer) { clearInterval(beepTimer); beepTimer = null; }
             }
 
             // Bucle del sonido del CÓDIGO: suena (agudo, repetitivo) mientras haya al
@@ -289,14 +259,19 @@
                 return card.dataset.alarmAt || null;
             }
 
-            // Pinta el código pendiente: tarjeta morada parpadeante con un badge (sin
-            // estado "vencido" rojo). 'ninguno' limpia todo.
+            // El parpadeo + pito del código dura como mucho esto; luego la tarjeta
+            // solo queda de color (vencida) hasta que se marque "Atendido".
+            var ALARMA_MS = 10000;
+            var inicioCodigo = {}; // clave (id|deadline) => instante en que se vio el código
+
+            // Pinta el código: 'contando' = morado parpadeante con badge (fase activa);
+            // 'vencido' = morado fijo sin badge ni sonido; 'ninguno' limpia todo.
             function pintarCuenta(card, estado, restanteMs) {
                 var badge = card.querySelector('.alarm-badge');
                 card.classList.toggle('is-counting', estado === 'contando');
-                card.classList.remove('is-ending', 'is-expired');
+                card.classList.toggle('is-expired', estado === 'vencido');
 
-                if (estado === 'ninguno') {
+                if (estado !== 'contando') {
                     if (badge) badge.remove();
 
                     return;
@@ -307,12 +282,9 @@
                     card.appendChild(badge);
                 }
                 var s = Math.max(0, Math.ceil(restanteMs / 1000));
-                var mm = Math.floor(s / 60);
-                var ss = s % 60;
-                var txt = restanteMs > 0 ? (mm > 0 ? (mm + ':' + (ss < 10 ? '0' + ss : ss)) : (s + 's')) : 'pendiente';
                 badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-purple-600 text-white ' +
                                   'text-[9px] font-bold px-1.5 py-0.5';
-                badge.textContent = '⏳ ' + txt;
+                badge.textContent = '⏳ ' + s + 's';
             }
 
             var banner = document.getElementById('alarm-banner');
@@ -320,22 +292,41 @@
 
             function revisar() {
                 var now = Date.now();
-                var contando = 0;
+                var hayCodigo = 0;
+                var vivos = {};
 
                 document.querySelectorAll('.client-card').forEach(function (card) {
                     // Solo EN LÍNEA tiene código/alarma; cualquier otro estado no tiene efecto.
                     if (card.dataset.status !== 'active') { pintarCuenta(card, 'ninguno'); return; }
                     var dl = deadlineDe(card);
-                    var t = dl ? Date.parse(dl) : NaN;
-                    if (! dl || isNaN(t)) { pintarCuenta(card, 'ninguno'); return; }
+                    if (! dl) { pintarCuenta(card, 'ninguno'); return; }
 
-                    // Código pendiente: morado parpadeante hasta que se marque "Atendido".
-                    pintarCuenta(card, 'contando', t - now);
-                    contando++;
+                    // Hay código pendiente: el pito suena hasta que se marque "Atendido".
+                    hayCodigo++;
+
+                    // La ventana de parpadeo arranca cuando vemos el código por primera vez
+                    // y dura ALARMA_MS. Un código nuevo (otro deadline) reinicia la ventana.
+                    var btnAt = card.querySelector('.btn-atendido[data-company]');
+                    var cid = btnAt ? btnAt.getAttribute('data-company') : (card.dataset.clientName || '');
+                    var clave = cid + '|' + dl;
+                    vivos[clave] = true;
+                    if (!inicioCodigo[clave]) inicioCodigo[clave] = now;
+                    var restante = ALARMA_MS - (now - inicioCodigo[clave]);
+
+                    if (restante > 0) {
+                        // Fase activa: morado parpadeante con letrero.
+                        pintarCuenta(card, 'contando', restante);
+                    } else {
+                        // Vencido: sin letrero ni parpadeo, solo color fijo; se quita con "Atendido".
+                        pintarCuenta(card, 'vencido');
+                    }
                 });
 
-                // Mientras haya una tarjeta con código pendiente, suena el aviso del código.
-                if (contando > 0) startCodeLoop(); else stopCodeLoop();
+                // Olvidamos las ventanas de códigos que ya no están en el tablero.
+                Object.keys(inicioCodigo).forEach(function (k) { if (!vivos[k]) delete inicioCodigo[k]; });
+
+                // El pito sigue mientras haya al menos un código pendiente (atendido o no vencido).
+                if (hayCodigo > 0) startCodeLoop(); else stopCodeLoop();
             }
 
             var silenceBtn = document.getElementById('alarm-silence');

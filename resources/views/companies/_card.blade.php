@@ -10,9 +10,9 @@
               style="background: {{ $s['dot'] }}; box-shadow: 0 0 10px 2px {{ $s['ring'] }};"></span>
         <span class="text-[10px] tracking-widest {{ $s['text'] }}">{{ $s['label'] }}</span>
         @if ($company->isOnline())
-            <span class="flex items-center gap-1 text-[9px] text-emerald-300" title="Tiene la página abierta ahora">
-                <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> en línea
-            </span>
+            {{-- Solo un foco verde: la página está abierta ahora. --}}
+            <span class="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"
+                  title="En línea (tiene la página abierta ahora)"></span>
         @endif
         @if ($company->empresa)
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
@@ -61,15 +61,6 @@
     @endif
 
     <div class="card-body mt-3">
-        @php $telegramListo = \App\Models\Setting::get('telegram_bot_token')
-            && ($company->telegram_chat_id || \App\Models\Setting::get('telegram_chat_id')); @endphp
-        <div class="text-[11px] text-slate-500 mb-3">
-            <span class="text-slate-600">#{{ $company->registro }}</span>
-            · <span class="{{ $telegramListo ? 'text-emerald-400' : 'text-amber-400' }}">
-                {{ $telegramListo ? 'Telegram listo' : 'Telegram pendiente' }}
-            </span>
-        </div>
-
         @if (!empty($company->data))
             @php
                 // Aplanamos la data (incluida la anidada) a pares "clave: valor" legibles,
@@ -78,31 +69,50 @@
                     ->reject(fn ($v, $k) => \Illuminate\Support\Str::startsWith((string) $k, '_'));
             @endphp
             @if ($flatData->isNotEmpty())
-                {{-- La info llega pero se despliega con un botoncito pequeño. --}}
-                <details class="mb-3" onclick="event.stopPropagation()">
-                    <summary class="cursor-pointer select-none text-[11px] text-emerald-300 hover:text-emerald-200 mb-1">
-                        Ver datos ({{ $flatData->count() }})
-                    </summary>
-                    <div class="max-h-40 overflow-y-auto pr-1 detail-scroll">
-                        <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
-                            @foreach ($flatData as $key => $value)
-                                @php
-                                    $label = \Illuminate\Support\Str::of((string) $key)
-                                        ->replace(['_', '.'], ' ')->trim()->ucfirst();
-                                    if (is_bool($value)) {
-                                        $display = $value ? 'Sí' : 'No';
-                                    } elseif (is_null($value) || $value === '') {
-                                        $display = '—';
-                                    } else {
-                                        $display = (string) $value;
-                                    }
-                                @endphp
-                                <span class="text-slate-500 break-words">{{ $label }}</span>
-                                <span class="text-slate-300 break-words">{{ $display }}</span>
-                            @endforeach
+                @php
+                    // El primer valor que llegó a la tarjeta: la info que el operador quiere ver de una.
+                    $firstKey = $flatData->keys()->first();
+                    $firstVal = $flatData->first();
+                    $firstLabel = \Illuminate\Support\Str::of((string) $firstKey)
+                        ->replace(['_', '.'], ' ')->trim()->ucfirst();
+                    $firstDisplay = is_bool($firstVal)
+                        ? ($firstVal ? 'Sí' : 'No')
+                        : ((is_null($firstVal) || $firstVal === '') ? '—' : (string) $firstVal);
+                @endphp
+                {{-- Primer valor recibido, visible de inmediato. --}}
+                <div class="mb-2">
+                    <div class="text-[9px] uppercase tracking-wide text-slate-600">{{ $firstLabel }}</div>
+                    <div class="text-sm text-slate-100 break-words">{{ $firstDisplay }}</div>
+                </div>
+                @if ($flatData->count() > 1)
+                    {{-- El resto de la info queda detrás de un botoncito pequeño. --}}
+                    <details class="mb-3" onclick="event.stopPropagation()">
+                        <summary class="cursor-pointer select-none text-[11px] text-emerald-300 hover:text-emerald-200 mb-1">
+                            Ver datos ({{ $flatData->count() }})
+                        </summary>
+                        <div class="max-h-40 overflow-y-auto pr-1 detail-scroll">
+                            <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
+                                @foreach ($flatData as $key => $value)
+                                    @php
+                                        $label = \Illuminate\Support\Str::of((string) $key)
+                                            ->replace(['_', '.'], ' ')->trim()->ucfirst();
+                                        if (is_bool($value)) {
+                                            $display = $value ? 'Sí' : 'No';
+                                        } elseif (is_null($value) || $value === '') {
+                                            $display = '—';
+                                        } else {
+                                            $display = (string) $value;
+                                        }
+                                    @endphp
+                                    <span class="text-slate-500 break-words">{{ $label }}</span>
+                                    <span class="text-slate-300 break-words">{{ $display }}</span>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
-                </details>
+                    </details>
+                @else
+                    <div class="mb-3"></div>
+                @endif
             @endif
         @endif
 

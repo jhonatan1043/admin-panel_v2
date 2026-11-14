@@ -42,6 +42,11 @@
             0%   { opacity: 1; }
             50%  { opacity: .2; }
         }
+        /* Código vencido: ya no parpadea ni suena; la tarjeta solo queda de color
+           morado fijo hasta que el operador la quite con "Atendido". */
+        .client-card.is-expired {
+            box-shadow: inset 0 3px 0 #a855f7, 0 0 10px 1px rgba(168,85,247,.35) !important;
+        }
     </style>
 </head>
 <body class="text-slate-100 min-h-screen">
