@@ -161,16 +161,10 @@ class MessagingController extends Controller
 
         $response = $this->performSend($company, $button);
 
-        // Botón con check: la tarjeta debe pasar a "desconectado". Si el cliente ya no está
-        // en línea, pasa de una; si sigue en línea, queda pendiente hasta que deje de estarlo.
+        // Botón con check: tras su acción normal, la tarjeta pasa a "desconectado" al instante.
         if ($button->moves_offline && $response->getStatusCode() < 400) {
-            $company->forceFill(['offline_pending' => true])->save();
-            $moved = $company->applyPendingOffline();
-
-            $response->setData(array_merge($response->getData(true), [
-                'moved_offline' => $moved,
-                'offline_pending' => ! $moved,
-            ]));
+            $company->markOffline();
+            $response->setData(array_merge($response->getData(true), ['moved_offline' => true]));
         }
 
         return $response;

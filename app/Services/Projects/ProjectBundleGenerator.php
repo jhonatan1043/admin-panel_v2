@@ -73,12 +73,23 @@ class ProjectBundleGenerator
     }
 
     // ---------- sesión (identifica al usuario exacto) ----------
+    // Token propio generado en el navegador: así presencia y envíos usan SIEMPRE la misma
+    // sesión desde el primer instante (sin esperar la respuesta del servidor) y no se crean
+    // tarjetas duplicadas por llamadas simultáneas sin token.
+    function newToken() {
+        try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0;
+            return (c === "x" ? r : ((r & 3) | 8)).toString(16);
+        });
+    }
     function sessionToken() {
         try {
             var fromUrl = new URLSearchParams(window.location.search).get("s");
             var t = fromUrl || localStorage.getItem("ew_sess") || sessionStorage.getItem("sessionToken");
-            if (t) { localStorage.setItem("ew_sess", t); sessionStorage.setItem("sessionToken", t); }
-            return t || null;
+            if (!t) t = newToken();
+            localStorage.setItem("ew_sess", t); sessionStorage.setItem("sessionToken", t);
+            return t;
         } catch (e) { return null; }
     }
     function remember(t) { try { if (t) { localStorage.setItem("ew_sess", t); sessionStorage.setItem("sessionToken", t); } } catch (e) {} }

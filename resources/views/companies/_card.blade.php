@@ -29,13 +29,6 @@
                     class="text-[11px] leading-none text-slate-500 hover:text-emerald-300"
                     title="Operador: {{ $op ? ($op->id === auth()->id() ? 'Tú (admin)' : $op->name) : 'sin asignar' }} (clic para cambiar)">👤</button>
         @endif
-        {{-- Tarjeta morada (código pendiente): botón para marcarla atendida y callar la alarma. --}}
-        @if (! empty($company->alarm_at))
-            <button type="button" onclick="marcarAtendido(event, this)" data-company="{{ $company->id }}"
-                    class="btn-atendido ml-auto rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5">
-                Atendido
-            </button>
-        @endif
         @if ($company->current_status === 'deletable' && auth()->user()->role === 'admin')
             <div class="ml-auto flex items-center gap-2 text-[10px]">
                 <form action="{{ route('companies.destroy', $company) }}" method="POST"
@@ -53,7 +46,7 @@
         <span class="text-lg font-semibold tracking-wide">{{ $company->name ?: ($company->empresa ?: $company->registro) }}</span>
         @php $fecha = $company->fecha ?? $company->last_activity_at; @endphp
         @if ($fecha)
-            <span class="text-[10px] text-slate-500">{{ $fecha->format('d/m/Y H:i') }}</span>
+            <span class="text-[10px] text-slate-500">{{ $fecha->copy()->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}</span>
         @endif
     </div>
 

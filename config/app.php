@@ -68,6 +68,13 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Zona horaria con la que se MUESTRAN las fechas y horas en el panel. Las fechas se
+    | siguen guardando en UTC (así no se mueven los datos existentes); solo se convierten
+    | al mostrarlas. Se cambia con APP_DISPLAY_TIMEZONE en el .env.
+    */
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'America/Bogota'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

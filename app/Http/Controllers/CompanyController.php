@@ -50,15 +50,16 @@ class CompanyController extends Controller
 
         $logs = $company->logs()->get()->sortBy('created_at')->values();
 
+        $tz = config('app.display_timezone');
         $lines = [
             'Conversación · '.($company->name ?: $company->registro).' ('.$company->registro.')',
             'Empresa: '.($company->empresa ?: '-'),
-            'Exportado: '.now()->format('d/m/Y H:i'),
+            'Exportado: '.now()->timezone($tz)->format('d/m/Y H:i'),
             str_repeat('-', 48),
         ];
 
         foreach ($logs as $log) {
-            $hora = $log->created_at->format('d/m/Y H:i');
+            $hora = $log->created_at->copy()->timezone($tz)->format('d/m/Y H:i');
             if ($log->direction === 'in') {
                 $lines[] = "[{$hora}] Cliente: {$log->text}";
             } else {
@@ -129,8 +130,6 @@ class CompanyController extends Controller
         $expiryByLabel = $this->expiryByLabel();
         $codeSignal = 0;
         foreach ($companies as $company) {
-            // Botón "pasa a desconectado" pendiente: se aplica apenas el cliente sale de línea.
-            $company->applyPendingOffline();
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
             foreach ($company->logs as $log) {
                 if (! empty($log->is_timed_reply)) {

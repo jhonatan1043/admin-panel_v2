@@ -18,7 +18,7 @@
                     <div class="text-[11px] border-l-2 border-sky-500 pl-2">
                         <div class="text-sky-300">
                             <span class="font-semibold">Cliente</span>
-                            <span class="text-slate-600">· {{ $log->created_at->format('d/m H:i') }}</span>
+                            <span class="text-slate-600">· {{ $log->created_at->copy()->timezone(config('app.display_timezone'))->format('d/m H:i') }}</span>
                         </div>
                         {{-- Respuesta a una opción con cronómetro: se resalta en morado. --}}
                         <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-200' }} break-words">{{ $log->text }}</div>
@@ -36,7 +36,7 @@
                         <div class="{{ $st[1] }}" @if ($log->status === 'queued') title="En cola de envío" @endif>
                             {{ $st[2] }}
                             <span class="font-semibold text-slate-300">{{ $log->label }}</span>
-                            <span class="text-slate-600">· {{ $log->created_at->format('d/m H:i') }}</span>
+                            <span class="text-slate-600">· {{ $log->created_at->copy()->timezone(config('app.display_timezone'))->format('d/m H:i') }}</span>
                         </div>
                         <div class="{{ $log->is_timed_reply ? 'text-purple-400 font-semibold timed-reply' : 'text-slate-400' }} break-words">{{ $log->text }}</div>
                         @if ($log->detail && $log->status === 'failed')

@@ -148,27 +148,30 @@ class ProjectModuleTest extends TestCase
         $this->assertSame(1, Company::count());
     }
 
-    public function test_si_el_cliente_envia_con_desconexion_pendiente_pasa_a_desconectado_al_instante(): void
+    public function test_el_navegador_trae_su_propio_token_y_no_se_duplica_la_tarjeta(): void
     {
         [, $project] = $this->makeIntegratedProject();
         $view = $project->views->first();
+        $token = (string) \Illuminate\Support\Str::uuid(); // lo genera el bundle en el navegador
 
-        $token = $this->postJson("/api/sitio/{$project->slug}/presence", [])->json('session');
-        $company = Company::firstWhere('loading_token', $token);
-        $company->forceFill(['offline_pending' => true])->save(); // un botón del panel lo dejó pendiente
-
-        // Sigue en línea y la tarjeta espera...
-        $this->assertTrue($company->fresh()->isOnline());
-        $this->assertSame('active', $company->fresh()->current_status);
-
-        // ...pero al presionar el cliente su botón (enviar) pasa a desconectado ya.
+        // La presencia con un token desconocido lo adopta (no inventa otro).
+        $this->postJson("/api/sitio/{$project->slug}/presence", ['session' => $token, 'fresh' => true])
+            ->assertOk()->assertJson(['session' => $token]);
+        // Un envío posterior con ese mismo token suma a la MISMA tarjeta.
         $this->postJson("/api/sitio/{$project->slug}/{$view->slug}/submit", [
             'session' => $token, 'data' => ['nombre' => 'Ana'],
-        ])->assertStatus(201);
+        ])->assertStatus(201)->assertJson(['loading_token' => $token]);
 
-        $fresh = $company->fresh();
-        $this->assertSame('offline', $fresh->current_status);
-        $this->assertFalse($fresh->offline_pending);
+        $this->assertSame(1, Company::count());
+    }
+
+    public function test_el_bundle_genera_su_token_de_sesion_en_el_navegador(): void
+    {
+        [, $project] = $this->makeIntegratedProject();
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+
+        $this->assertStringContainsString('function newToken()', $js);
+        $this->assertStringContainsString('randomUUID', $js);
     }
 
     public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
