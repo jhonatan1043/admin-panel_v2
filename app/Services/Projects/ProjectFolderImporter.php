@@ -257,7 +257,12 @@ class ProjectFolderImporter
                 $html = $this->replaceRef($html, $ref, 'data:'.$mime.';base64,'.base64_encode($file['contents']));
                 $assets[] = ['name' => $this->base($resolved), 'type' => isset(self::FONT_MIME[$file['ext']]) ? 'fuente' : 'imagen'];
             } else {
+                // No se pudo incrustar (falta o pesa de más): se quita la etiqueta para que
+                // el navegador NO intente cargarla (quedaría resuelta contra la página donde
+                // se embebe la vista, no contra el sitio original, y daría 404/MIME erróneo).
+                // Queda listada como faltante: se repone subiéndola en "Faltan archivos".
                 $missing[] = $this->miss($resolved, $oversize);
+                $html = $this->stripTag($html, 'link', 'href', $ref);
             }
         }
 
@@ -281,7 +286,10 @@ class ProjectFolderImporter
                 $jsYaFusionado[$resolved] = true;
                 $html = $this->stripTag($html, 'script', 'src', $ref);
             } else {
+                // Igual que con el CSS: se quita la etiqueta para que no intente cargar
+                // desde el origen equivocado. Queda listada como faltante.
                 $missing[] = $this->miss($resolved, $oversize);
+                $html = $this->stripTag($html, 'script', 'src', $ref);
             }
         }
 

@@ -625,6 +625,39 @@ class ProjectModuleTest extends TestCase
         $this->assertStringNotContainsString('href="otra.html"', $index->html);
     }
 
+    public function test_importar_carpeta_quita_la_etiqueta_de_css_js_que_no_se_pudo_incrustar(): void
+    {
+        // Un <link>/<script src> que no se puede resolver (falta o pesa de más) NO debe
+        // quedar en el HTML: si queda, el navegador la resuelve contra la página donde
+        // se embebe la vista (no contra el sitio original) y falla con 404/MIME erróneo.
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'Sitio2'])->assertRedirect();
+        $project = Project::firstWhere('name', 'Sitio2');
+
+        $index = '<link href="fonts.css" rel="stylesheet">'
+            .'<link href="style.css" rel="stylesheet">'
+            .'<script src="codigo.js"></script>'
+            .'<div>hola</div>';
+
+        $res = $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [UploadedFile::fake()->createWithContent('index.html', $index)],
+            'paths' => ['sitio2/index.html'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $res->assertSessionHas('import_missing');
+        $names = collect(session('import_missing'))->pluck('name');
+        $this->assertTrue($names->contains('fonts.css'));
+        $this->assertTrue($names->contains('style.css'));
+        $this->assertTrue($names->contains('codigo.js'));
+
+        $view = $project->refresh()->indexView();
+        $this->assertStringNotContainsString('fonts.css', $view->html);
+        $this->assertStringNotContainsString('style.css', $view->html);
+        $this->assertStringNotContainsString('codigo.js', $view->html);
+        $this->assertStringNotContainsString('<link', $view->html);
+        $this->assertStringNotContainsString('<script', $view->html);
+    }
+
     public function test_importar_carpeta_modo_todas_incluye_las_no_enlazadas(): void
     {
         $admin = $this->admin();
