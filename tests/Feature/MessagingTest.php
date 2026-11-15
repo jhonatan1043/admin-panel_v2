@@ -45,9 +45,36 @@ class MessagingTest extends TestCase
 
         $this->assertSame('active', $company->current_status);
 
+        // Cliente fuera de línea: pasa a desconectado de una.
         $this->actingAs($admin)
             ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('moved_offline', true);
+
+        $this->assertSame('offline', $company->fresh()->current_status);
+    }
+
+    public function test_boton_con_check_espera_si_el_cliente_sigue_en_linea(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $company = $this->company(['telegram_chat_id' => '123']);
+        $company->forceFill(['last_seen_at' => now()])->save(); // en línea ahora
+        $button = Button::create([
+            'label' => 'Cerrar', 'text' => 'Gracias', 'url' => 'https://destino.test', 'moves_offline' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
+            ->assertOk()
+            ->assertJsonPath('moved_offline', false)
+            ->assertJsonPath('offline_pending', true);
+
+        // Sigue en línea: la tarjeta espera, sigue activa.
+        $this->assertSame('active', $company->fresh()->current_status);
+
+        // El cliente deja de estar en línea: en el siguiente refresco del tablero pasa a desconectado.
+        $company->forceFill(['last_seen_at' => now()->subMinutes(5)])->save();
+        $this->actingAs($admin)->get('/companies/board')->assertOk();
 
         $this->assertSame('offline', $company->fresh()->current_status);
     }

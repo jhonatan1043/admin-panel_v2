@@ -75,6 +75,7 @@ class Company extends Model
         'last_seen_at' => 'datetime',
         'fecha' => 'datetime',
         'next_view_at' => 'datetime',
+        'offline_pending' => 'boolean',
         'data' => 'array',
     ];
 
@@ -130,6 +131,26 @@ class Company extends Model
                 default => 'active',
             };
         });
+    }
+
+    /**
+     * Si un botón pidió "pasar a desconectado" y el cliente ya NO está en línea, aplica
+     * el cambio (el estado se calcula por inactividad, así que se simula la antigüedad).
+     * Mientras siga en línea, la tarjeta espera. Con $force (el cliente acaba de presionar
+     * un botón / enviar algo) se aplica al instante sin esperar. Devuelve true si se aplicó.
+     */
+    public function applyPendingOffline(bool $force = false): bool
+    {
+        if (! $this->offline_pending || (! $force && $this->isOnline())) {
+            return false;
+        }
+
+        $this->forceFill([
+            'last_activity_at' => now()->subMinutes(self::OFFLINE_AFTER),
+            'offline_pending' => false,
+        ])->save();
+
+        return true;
     }
 
     /** Registra actividad/gestión y reinicia el ciclo a verde. */

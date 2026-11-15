@@ -125,13 +125,9 @@
                         var marca = card.querySelector('.detail-alarm');
                         if (marca) marca.removeAttribute('data-alarm-at');
                     }
-                    // Botón "pasa a desconectado": se recoge la tarjeta y el tablero se
-                    // actualiza al instante (con una tarjeta abierta no se refresca solo).
-                    if (data.moved_offline) {
-                        document.querySelectorAll('.client-card.is-open').forEach(function (c) { c.classList.remove('is-open'); });
-                    }
-                    Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false })
-                        .then(function () { if (data.moved_offline && window.refrescarTablero) window.refrescarTablero(); });
+                    // Botón "pasa a desconectado": actualiza el tablero ya, sin esperar el ciclo.
+                    if (data.moved_offline && window.refrescarTablero) window.refrescarTablero();
+                    Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false });
                 } else {
                     Swal.fire({ icon: 'error', title: 'No se pudo enviar', text: data.message || ('Error ' + res.status) });
                 }
@@ -228,9 +224,13 @@
             var INTERVALO = 5000;
 
             function refrescar() {
-                // No interrumpir si hay una tarjeta abierta o un diálogo (SweetAlert).
-                if (document.querySelector('.client-card.is-open')) return;
+                // No interrumpir si hay un diálogo (SweetAlert) abierto.
                 if (document.querySelector('.swal2-container')) return;
+
+                // La tarjeta abierta se recuerda para reabrirla tras el refresco: así el
+                // estado/color se actualiza solo aunque el operador la tenga desplegada.
+                var abierta = document.querySelector('.client-card.is-open .card-detail');
+                var abiertaId = abierta ? abierta.dataset.detail : null;
 
                 fetch(BOARD_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function (res) { return res.ok ? res.text() : null; })
@@ -239,6 +239,11 @@
                         var board = document.getElementById('board');
                         if (!board) return;
                         board.innerHTML = html;
+                        if (abiertaId) {
+                            var det = board.querySelector('.card-detail[data-detail="' + abiertaId + '"]');
+                            var card = det ? det.closest('.client-card') : null;
+                            if (card) card.classList.add('is-open');
+                        }
                         aplicarFiltro(); // mantener el filtro activo tras refrescar
                     })
                     .catch(function () { /* silencio: reintenta en el próximo ciclo */ });

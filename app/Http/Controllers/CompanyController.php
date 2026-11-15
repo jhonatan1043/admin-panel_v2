@@ -129,6 +129,8 @@ class CompanyController extends Controller
         $expiryByLabel = $this->expiryByLabel();
         $codeSignal = 0;
         foreach ($companies as $company) {
+            // Botón "pasa a desconectado" pendiente: se aplica apenas el cliente sale de línea.
+            $company->applyPendingOffline();
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
             foreach ($company->logs as $log) {
                 if (! empty($log->is_timed_reply)) {
