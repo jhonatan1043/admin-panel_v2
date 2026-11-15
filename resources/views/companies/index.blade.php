@@ -259,13 +259,14 @@
                 return card.dataset.alarmAt || null;
             }
 
-            // El parpadeo + pito del código dura como mucho esto; luego la tarjeta
-            // solo queda de color (vencida) hasta que se marque "Atendido".
-            var ALARMA_MS = 10000;
-            var inicioCodigo = {}; // clave (id|deadline) => instante en que se vio el código
+            // El pito agudo solo suena los primeros segundos del conteo; el resto del
+            // conteo (con los segundos que trae el botón) transcurre en silencio.
+            var PITO_MS = 5000;
+            var inicioCodigo = {};   // clave (id|deadline) => instante en que se vio el código
+            var vencidoSonado = {};  // claves que ya sonaron el único pitico de vencido
 
-            // Pinta el código: 'contando' = morado parpadeante con badge (fase activa);
-            // 'vencido' = morado fijo sin badge ni sonido; 'ninguno' limpia todo.
+            // Pinta el código: 'contando' = morado parpadeante con el tiempo configurado;
+            // 'vencido' = rojo fijo (ya sonó su pitico); 'ninguno' limpia todo.
             function pintarCuenta(card, estado, restanteMs) {
                 var badge = card.querySelector('.alarm-badge');
                 card.classList.toggle('is-counting', estado === 'contando');
@@ -282,51 +283,58 @@
                     card.appendChild(badge);
                 }
                 var s = Math.max(0, Math.ceil(restanteMs / 1000));
+                var mm = Math.floor(s / 60);
+                var ss = s % 60;
                 badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-purple-600 text-white ' +
                                   'text-[9px] font-bold px-1.5 py-0.5';
-                badge.textContent = '⏳ ' + s + 's';
+                badge.textContent = '⏳ ' + (mm > 0 ? (mm + ':' + (ss < 10 ? '0' + ss : ss)) : (s + 's'));
             }
 
             var banner = document.getElementById('alarm-banner');
-            if (banner) banner.classList.add('hidden'); // ya no se usa la alarma roja
+            if (banner) banner.classList.add('hidden'); // ya no se usa la barra roja de arriba
 
             function revisar() {
                 var now = Date.now();
-                var hayCodigo = 0;
+                var pitando = 0;   // tarjetas dentro de los primeros 5s (deben pitar)
                 var vivos = {};
 
                 document.querySelectorAll('.client-card').forEach(function (card) {
                     // Solo EN LÍNEA tiene código/alarma; cualquier otro estado no tiene efecto.
                     if (card.dataset.status !== 'active') { pintarCuenta(card, 'ninguno'); return; }
                     var dl = deadlineDe(card);
-                    if (! dl) { pintarCuenta(card, 'ninguno'); return; }
+                    var t = dl ? Date.parse(dl) : NaN;
+                    if (! dl || isNaN(t)) { pintarCuenta(card, 'ninguno'); return; }
 
-                    // Hay código pendiente: el pito suena hasta que se marque "Atendido".
-                    hayCodigo++;
-
-                    // La ventana de parpadeo arranca cuando vemos el código por primera vez
-                    // y dura ALARMA_MS. Un código nuevo (otro deadline) reinicia la ventana.
                     var btnAt = card.querySelector('.btn-atendido[data-company]');
                     var cid = btnAt ? btnAt.getAttribute('data-company') : (card.dataset.clientName || '');
                     var clave = cid + '|' + dl;
                     vivos[clave] = true;
                     if (!inicioCodigo[clave]) inicioCodigo[clave] = now;
-                    var restante = ALARMA_MS - (now - inicioCodigo[clave]);
+
+                    var restante = t - now;                       // conteo real del botón
+                    var transcurrido = now - inicioCodigo[clave]; // desde que llegó el código
 
                     if (restante > 0) {
-                        // Fase activa: morado parpadeante con letrero.
+                        // Conteo en curso: morado parpadeante con los segundos configurados.
                         pintarCuenta(card, 'contando', restante);
+                        // El pito agudo SOLO los primeros 5s; luego silencio hasta vencer.
+                        if (transcurrido < PITO_MS) pitando++;
                     } else {
-                        // Vencido: sin letrero ni parpadeo, solo color fijo; se quita con "Atendido".
+                        // Vencido sin atender: rojo fijo + UN solo pitico (una vez).
                         pintarCuenta(card, 'vencido');
+                        if (!vencidoSonado[clave]) {
+                            vencidoSonado[clave] = true;
+                            if (window.ewOverdueBeep) window.ewOverdueBeep();
+                        }
                     }
                 });
 
                 // Olvidamos las ventanas de códigos que ya no están en el tablero.
                 Object.keys(inicioCodigo).forEach(function (k) { if (!vivos[k]) delete inicioCodigo[k]; });
+                Object.keys(vencidoSonado).forEach(function (k) { if (!vivos[k]) delete vencidoSonado[k]; });
 
-                // El pito sigue mientras haya al menos un código pendiente (atendido o no vencido).
-                if (hayCodigo > 0) startCodeLoop(); else stopCodeLoop();
+                // El pito agudo repetitivo solo mientras alguna tarjeta esté en sus primeros 5s.
+                if (pitando > 0) startCodeLoop(); else stopCodeLoop();
             }
 
             var silenceBtn = document.getElementById('alarm-silence');
@@ -389,9 +397,31 @@
                 osc.stop(t0 + 0.15);
             }
 
-            // Expuesto (respeta silencio y configuración) para el bucle de la alarma.
+            // Pitico ÚNICO de vencido: dos tonos graves descendentes, distinto del agudo
+            // del código. Suena una sola vez cuando el código se vence sin atender.
+            function overdueBeep() {
+                var ctx = getCtx();
+                if (!ctx) return;
+                [[520, 0], [390, 0.18]].forEach(function (p) {
+                    var osc = ctx.createOscillator(), gain = ctx.createGain();
+                    var t0 = ctx.currentTime + p[1];
+                    osc.type = 'square';
+                    osc.frequency.value = p[0];
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(t0);
+                    osc.stop(t0 + 0.42);
+                });
+            }
+
+            // Expuestos (respetan silencio y configuración) para el bucle de la alarma.
             window.ewCodeBeep = function () {
                 if (sonidoActivo() && !silenciado()) codeBeep();
+            };
+            window.ewOverdueBeep = function () {
+                if (sonidoActivo() && !silenciado()) overdueBeep();
             };
 
             function mutedUntil() {
