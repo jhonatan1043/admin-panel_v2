@@ -179,10 +179,14 @@ class ViewUploadAssembler
     private function stripTagByAsset(string $html, string $tag, string $attr, string $basename): string
     {
         $quoted = preg_quote($basename, '/');
-        // <script ... src="...basename"></script>
+        // <script ... src="...basename">...</script>, o autocerrada <script ... src="...basename" />.
+        // Cubre cualquier contenido de respaldo entre etiquetas (no solo espacios en
+        // blanco): de lo contrario la etiqueta sobrevive con su ruta relativa y el
+        // navegador la busca contra la página donde se embebe la vista, no contra el
+        // sitio original.
         if ($tag === 'script') {
             return (string) preg_replace(
-                '/<script\b[^>]*\b'.$attr.'\s*=\s*["\'][^"\']*'.$quoted.'["\'][^>]*>\s*<\/script>/i',
+                '/<script\b[^>]*\b'.$attr.'\s*=\s*["\'][^"\']*'.$quoted.'["\'][^>]*?(?:\/>|>[\s\S]*?<\/script\s*>)/i',
                 '',
                 $html
             );

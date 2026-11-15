@@ -414,7 +414,17 @@ class ProjectFolderImporter
     {
         $q = preg_quote($ref, '/');
         if ($tag === 'script') {
-            return (string) preg_replace('/<script\b[^>]*\b'.$attr.'\s*=\s*["\']'.$q.'["\'][^>]*>\s*<\/script>/i', '', $html);
+            // Cubre tanto <script src="ref">...contenido de respaldo...</script> (el
+            // contenido entre etiquetas se descarta: ya se fusionó el archivo real; si
+            // el navegador llegara a verla, src manda igual) como la forma autocerrada
+            // <script src="ref" />. Si no se reconoce esta etiqueta, queda intacta con su
+            // ruta relativa y el navegador la busca contra la página donde se embebe la
+            // vista (no contra el sitio original), dando 404/MIME erróneo.
+            return (string) preg_replace(
+                '/<script\b[^>]*\b'.$attr.'\s*=\s*["\']'.$q.'["\'][^>]*?(?:\/>|>[\s\S]*?<\/script\s*>)/i',
+                '',
+                $html
+            );
         }
 
         return (string) preg_replace('/<link\b[^>]*\b'.$attr.'\s*=\s*["\']'.$q.'["\'][^>]*>/i', '', $html);

@@ -563,6 +563,26 @@ class ProjectModuleTest extends TestCase
         $this->assertSame([], $asm->missing($view->html, $view->css));
     }
 
+    public function test_subir_archivo_faltante_quita_el_script_aunque_tenga_contenido_de_respaldo(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'FaltanRespaldo'])->assertRedirect();
+        $project = Project::firstWhere('name', 'FaltanRespaldo');
+
+        $html = '<script src="codigo.js">/* respaldo */ console.log(1);</script><div>hola</div>';
+        $this->actingAs($admin)->post(route('projects.views.store', $project), ['name' => 'Login', 'html' => $html])->assertRedirect();
+        $view = $project->fresh('views')->views->first();
+
+        $this->actingAs($admin)->post(route('projects.views.assets', [$project, $view]), [
+            'files' => [UploadedFile::fake()->createWithContent('codigo.js', 'window.CODIGO=1;')],
+        ])->assertRedirect();
+        $view->refresh();
+
+        $this->assertStringContainsString('window.CODIGO=1;', (string) $view->js);
+        $this->assertStringNotContainsString('<script', $view->html);
+        $this->assertStringNotContainsString('codigo.js', $view->html);
+    }
+
     public function test_importar_carpeta_crea_vistas_resuelve_archivos_y_lista_faltantes(): void
     {
         $admin = $this->admin();
@@ -623,6 +643,38 @@ class ProjectModuleTest extends TestCase
         // El enlace <a href="otra.html"> quedó remapeado para abrir esa vista en el embed.
         $this->assertStringContainsString('data-ew-view="'.$otra->slug.'"', $index->html);
         $this->assertStringNotContainsString('href="otra.html"', $index->html);
+    }
+
+    public function test_importar_carpeta_quita_la_etiqueta_script_con_contenido_de_respaldo(): void
+    {
+        // <script src="..."> con contenido de respaldo entre etiquetas (el navegador lo
+        // ignora porque hay src, pero debía quitarse igual: antes sobrevivía sin quitar
+        // por tener algo más que espacios en blanco entre apertura y cierre).
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'SitioRespaldo'])->assertRedirect();
+        $project = Project::firstWhere('name', 'SitioRespaldo');
+
+        $index = '<script src="codigo.js">/* respaldo si falla el src */ console.log(1);</script>'
+            .'<script src="autocerrado.js" />'
+            .'<div>hola</div>';
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $index),
+                UploadedFile::fake()->createWithContent('codigo.js', 'window.CODIGO=1;'),
+                UploadedFile::fake()->createWithContent('autocerrado.js', 'window.AUTO=1;'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/codigo.js', 'sitio/autocerrado.js'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $view = $project->refresh()->indexView();
+        // Se fusionó el contenido real de ambos archivos...
+        $this->assertStringContainsString('window.CODIGO=1;', (string) $view->js);
+        $this->assertStringContainsString('window.AUTO=1;', (string) $view->js);
+        // ...y la etiqueta vieja (con su ruta relativa) ya no está en el HTML.
+        $this->assertStringNotContainsString('<script', $view->html);
+        $this->assertStringNotContainsString('codigo.js', $view->html);
+        $this->assertStringNotContainsString('autocerrado.js', $view->html);
     }
 
     public function test_importar_carpeta_quita_la_etiqueta_de_css_js_que_no_se_pudo_incrustar(): void
