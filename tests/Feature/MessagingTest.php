@@ -35,6 +35,23 @@ class MessagingTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_boton_con_check_pasa_la_tarjeta_a_desconectado(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $company = $this->company(['telegram_chat_id' => '123']);
+        $button = Button::create([
+            'label' => 'Cerrar', 'text' => 'Gracias', 'url' => 'https://destino.test', 'moves_offline' => true,
+        ]);
+
+        $this->assertSame('active', $company->current_status);
+
+        $this->actingAs($admin)
+            ->postJson("/api/companies/{$company->id}/send", ['button_id' => $button->id])
+            ->assertOk();
+
+        $this->assertSame('offline', $company->fresh()->current_status);
+    }
+
     public function test_falla_si_no_hay_bot_global_configurado(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

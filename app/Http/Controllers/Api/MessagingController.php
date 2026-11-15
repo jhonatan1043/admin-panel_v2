@@ -153,6 +153,28 @@ class MessagingController extends Controller
 
         $button = Button::findOrFail($data['button_id']);
 
+        // Responder con una opción resuelve el código pendiente: la tarjeta deja de
+        // estar morada (o vencida) y vuelve a verde. Solo un código posterior la reactiva.
+        $company->forceFill([
+            'code_attended_id' => (int) $company->logs()->where('direction', 'in')->max('id'),
+        ])->save();
+
+        $response = $this->performSend($company, $button);
+
+        // Botón con check: tras su acción normal, la tarjeta pasa a "desconectado"
+        // (el estado se calcula por inactividad, así que se simula la antigüedad).
+        if ($button->moves_offline && $response->getStatusCode() < 400) {
+            $company->forceFill([
+                'last_activity_at' => now()->subMinutes(\App\Models\Company::OFFLINE_AFTER),
+            ])->save();
+        }
+
+        return $response;
+    }
+
+    /** Acción propia del botón: pedir vista, abrir URL o enviar texto por Telegram. */
+    private function performSend(Company $company, Button $button): JsonResponse
+    {
         // Botón amarrado a una vista de proyecto: en vez de enviar texto por Telegram,
         // pide esa vista para el cliente. Su pantalla de carga la detecta y avanza.
         if ($button->project_view_id) {

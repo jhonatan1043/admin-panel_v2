@@ -48,9 +48,14 @@
         <label class="{{ $lbl }}">Vence (seg.)</label>
         <input type="number" name="expires_seconds" min="1" value="{{ $v('expires_seconds') }}" placeholder="No vence" class="{{ $field }}">
     </div>
-    <div class="sm:col-span-2 flex items-end">
-        <label class="text-xs text-slate-300 flex items-center gap-1.5 pb-1.5">
+    <div class="sm:col-span-2 flex flex-col justify-end gap-1 pb-1.5">
+        <label class="text-xs text-slate-300 flex items-center gap-1.5">
             <input type="checkbox" name="is_active" value="1" @checked($button ? $button->is_active : old('is_active', true))> Activo
+        </label>
+        <label class="text-xs text-slate-300 flex items-center gap-1.5"
+               title="Al presionarlo, además de su acción, la tarjeta pasa a desconectado">
+            <input type="checkbox" name="moves_offline" value="1"
+                   @checked($button ? $button->moves_offline : old('moves_offline'))> Pasa a desconectado
         </label>
     </div>
 </div>

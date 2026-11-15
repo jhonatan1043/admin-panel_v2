@@ -53,12 +53,14 @@ class ButtonController extends Controller
             'url' => ['nullable', 'string', 'max:2000'],
             'project_view_id' => ['nullable', 'integer', 'exists:project_views,id'],
             'is_error_view' => ['nullable', 'boolean'],
+            'moves_offline' => ['nullable', 'boolean'],
             'expires_seconds' => ['nullable', 'integer', 'min:1', 'max:86400'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]) + [
             'is_active' => $request->boolean('is_active'),
             'is_error_view' => $request->boolean('is_error_view'),
+            'moves_offline' => $request->boolean('moves_offline'),
             'sort_order' => (int) $request->input('sort_order', 0),
             'project_view_id' => $request->input('project_view_id') ?: null,
         ];

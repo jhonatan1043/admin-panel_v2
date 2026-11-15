@@ -14,9 +14,20 @@
             <span class="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"
                   title="En línea (tiene la página abierta ahora)"></span>
         @endif
-        @if ($company->empresa)
+        {{-- La empresa solo se muestra si no es ya el título de la tarjeta (evita repetirla). --}}
+        @if ($company->empresa && $company->name)
             <span class="rounded bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[9px] px-1.5 py-0.5"
                   title="Proyecto / empresa de origen">{{ $company->empresa }}</span>
+        @endif
+        {{-- Operador (solo admin): icono discreto; al tocarlo se elige/cambia el operador. --}}
+        @if (auth()->user()->role === 'admin')
+            @php $op = $company->operator; @endphp
+            <button type="button" onclick="asignarOperador(event, this)"
+                    data-company="{{ $company->id }}"
+                    data-operator="{{ $company->operator_id }}"
+                    data-client="{{ $company->name ?: $company->registro }}"
+                    class="text-[11px] leading-none text-slate-500 hover:text-emerald-300"
+                    title="Operador: {{ $op ? ($op->id === auth()->id() ? 'Tú (admin)' : $op->name) : 'sin asignar' }} (clic para cambiar)">👤</button>
         @endif
         {{-- Tarjeta morada (código pendiente): botón para marcarla atendida y callar la alarma. --}}
         @if (! empty($company->alarm_at))
@@ -45,20 +56,6 @@
             <span class="text-[10px] text-slate-500">{{ $fecha->format('d/m/Y H:i') }}</span>
         @endif
     </div>
-
-    @if (auth()->user()->role === 'admin')
-        @php $op = $company->operator; @endphp
-        <div class="text-[10px] mt-1 flex items-center gap-1">
-            <span class="text-slate-500">Operador:</span>
-            @if (! $op)
-                <span class="text-slate-600">sin asignar</span>
-            @elseif ($op->id === auth()->id())
-                <span class="text-emerald-400">Tú (admin)</span>
-            @else
-                <span class="text-sky-300">{{ $op->name }}</span>
-            @endif
-        </div>
-    @endif
 
     @php
         // Aplanamos la data (incluida la anidada) a pares "clave: valor" legibles,
@@ -89,10 +86,10 @@
 
     <div class="card-body mt-3">
         @if ($flatData->count() > 1)
-            {{-- El resto de la info: solo al abrir la tarjeta. --}}
+            {{-- El resto de la info (sin repetir el primer valor, que ya se ve en la tarjeta). --}}
             <div class="mb-3 max-h-40 overflow-y-auto pr-1 detail-scroll">
                 <div class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px]">
-                    @foreach ($flatData as $key => $value)
+                    @foreach ($flatData->slice(1) as $key => $value)
                         @php
                             $label = \Illuminate\Support\Str::of((string) $key)
                                 ->replace(['_', '.'], ' ')->trim()->ucfirst();
@@ -109,31 +106,6 @@
                     @endforeach
                 </div>
             </div>
-        @endif
-
-        @if (auth()->user()->role === 'admin')
-            <form action="{{ route('companies.assign', $company) }}" method="POST"
-                  onclick="event.stopPropagation()"
-                  class="mb-3 flex items-center gap-2 js-confirm"
-                  data-confirm-title="¿Asignar operador?"
-                  data-confirm="Se cambiará el operador de {{ $company->name ?: $company->registro }}."
-                  data-confirm-btn="Sí, asignar"
-                  data-confirm-icon="question"
-                  data-confirm-color="#059669">
-                @csrf @method('PUT')
-                <span class="text-[10px] text-slate-500">Asignar a:</span>
-                <select name="operator_id"
-                        class="rounded bg-black/40 border border-slate-600 px-2 py-1 text-[11px]">
-                    <option value="">sin asignar</option>
-                    <option value="{{ auth()->id() }}" @selected($company->operator_id === auth()->id())>Yo (admin)</option>
-                    @foreach ($operators as $op)
-                        <option value="{{ $op->id }}" @selected($company->operator_id === $op->id)>{{ $op->name }}</option>
-                    @endforeach
-                </select>
-                <button class="rounded border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 text-[11px] px-2 py-1">
-                    Guardar
-                </button>
-            </form>
         @endif
 
         {{-- Conversación en vivo: este contenedor se refresca solo mientras la tarjeta está abierta. --}}

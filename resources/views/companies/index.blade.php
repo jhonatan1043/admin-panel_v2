@@ -51,6 +51,43 @@
     <script>
         // Presionar un botón: envía directo el texto al Telegram del cliente (sin confirmar).
         // El botón queda deshabilitado mientras se envía y se habilita al mostrar el resultado.
+        // Operadores asignables (solo admin): se elige desde el icono 👤 de la tarjeta.
+        var OPERADORES = @json(
+            collect([['id' => auth()->id(), 'name' => 'Yo (admin)']])
+                ->concat($operators->map(fn ($o) => ['id' => $o->id, 'name' => $o->name]))->values()
+        );
+
+        function asignarOperador(e, btn) {
+            e.stopPropagation();
+            var actual = btn.dataset.operator || '';
+            var opciones = { '': 'Sin asignar' };
+            OPERADORES.forEach(function (o) { opciones[o.id] = o.name; });
+
+            Swal.fire({
+                title: 'Asignar operador',
+                text: btn.dataset.client,
+                input: 'select',
+                inputOptions: opciones,
+                inputValue: actual,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                confirmButtonColor: '#059669',
+            }).then(function (r) {
+                if (!r.isConfirmed) return;
+                var f = document.createElement('form');
+                f.method = 'POST';
+                f.action = '/companies/' + btn.dataset.company + '/assign';
+                [['_token', document.querySelector('meta[name=csrf-token]').content],
+                 ['_method', 'PUT'], ['operator_id', r.value]].forEach(function (p) {
+                    var i = document.createElement('input');
+                    i.type = 'hidden'; i.name = p[0]; i.value = p[1];
+                    f.appendChild(i);
+                });
+                document.body.appendChild(f);
+                f.submit();
+            });
+        }
+
         function sendMessage(e, btn) {
             e.stopPropagation();
             if (btn.disabled) return; // evita doble envío
@@ -78,6 +115,16 @@
             }).then(async function (res) {
                 var data = await res.json().catch(function () { return {}; });
                 if (res.ok && data.ok) {
+                    // Responder con una opción resuelve el código: la tarjeta vuelve a verde.
+                    var card = btn.closest('.client-card');
+                    if (card) {
+                        card.removeAttribute('data-alarm-at');
+                        card.classList.remove('is-counting', 'is-expired');
+                        var badge = card.querySelector('.alarm-badge');
+                        if (badge) badge.remove();
+                        var marca = card.querySelector('.detail-alarm');
+                        if (marca) marca.removeAttribute('data-alarm-at');
+                    }
                     Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false });
                 } else {
                     Swal.fire({ icon: 'error', title: 'No se pudo enviar', text: data.message || ('Error ' + res.status) });
@@ -266,13 +313,13 @@
             var vencidoSonado = {};  // claves que ya sonaron el único pitico de vencido
 
             // Pinta el código: 'contando' = morado parpadeante con el tiempo configurado;
-            // 'vencido' = rojo fijo (ya sonó su pitico); 'ninguno' limpia todo.
+            // 'vencido' = morado fijo con el reloj en ROJO; 'ninguno' limpia todo.
             function pintarCuenta(card, estado, restanteMs) {
                 var badge = card.querySelector('.alarm-badge');
                 card.classList.toggle('is-counting', estado === 'contando');
                 card.classList.toggle('is-expired', estado === 'vencido');
 
-                if (estado !== 'contando') {
+                if (estado === 'ninguno') {
                     if (badge) badge.remove();
 
                     return;
@@ -282,11 +329,18 @@
                     badge.className = 'alarm-badge';
                     card.appendChild(badge);
                 }
+                var base = 'alarm-badge absolute top-1 right-1 z-10 rounded text-white text-[9px] font-bold px-1.5 py-0.5 ';
+                if (estado === 'vencido') {
+                    // El conteo terminó: el reloj se pone rojo; la tarjeta sigue morada.
+                    badge.className = base + 'bg-red-600';
+                    badge.textContent = '⏰ vencido';
+
+                    return;
+                }
                 var s = Math.max(0, Math.ceil(restanteMs / 1000));
                 var mm = Math.floor(s / 60);
                 var ss = s % 60;
-                badge.className = 'alarm-badge absolute top-1 right-1 z-10 rounded bg-purple-600 text-white ' +
-                                  'text-[9px] font-bold px-1.5 py-0.5';
+                badge.className = base + 'bg-purple-600';
                 badge.textContent = '⏳ ' + (mm > 0 ? (mm + ':' + (ss < 10 ? '0' + ss : ss)) : (s + 's'));
             }
 
@@ -320,7 +374,7 @@
                         // El pito agudo SOLO los primeros 5s; luego silencio hasta vencer.
                         if (transcurrido < PITO_MS) pitando++;
                     } else {
-                        // Vencido sin atender: rojo fijo + UN solo pitico (una vez).
+                        // Vencido sin atender: tarjeta morada + reloj rojo + UN solo pitico.
                         pintarCuenta(card, 'vencido');
                         if (!vencidoSonado[clave]) {
                             vencidoSonado[clave] = true;
@@ -362,22 +416,23 @@
             // Desbloquea el audio en la primera interacción del operador.
             document.addEventListener('click', function () { getCtx(); }, { once: true });
 
-            // Doble tono suave, distinto de la alarma de vencimiento.
+            // Aviso de que llegó un mensaje: suena 4 veces, FUERTE, para no pasarlo por alto.
             function chime() {
                 var ctx = getCtx();
                 if (!ctx) return;
-                [[660, 0], [880, 0.15]].forEach(function (p) {
+                var base = ctx.currentTime;
+                for (var i = 0; i < 4; i++) {
                     var osc = ctx.createOscillator(), gain = ctx.createGain();
-                    var t0 = ctx.currentTime + p[1];
+                    var t0 = base + i * 0.4;
                     osc.type = 'sine';
-                    osc.frequency.value = p[0];
+                    osc.frequency.value = 880;
                     gain.gain.setValueAtTime(0.0001, t0);
-                    gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.6, t0 + 0.03); // fuerte
                     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
                     osc.connect(gain).connect(ctx.destination);
                     osc.start(t0);
                     osc.stop(t0 + 0.32);
-                });
+                }
             }
 
             // Pitido agudo corto para el CÓDIGO (tarjeta morada). Se repite mientras la

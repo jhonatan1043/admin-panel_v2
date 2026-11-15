@@ -42,10 +42,11 @@
             0%   { opacity: 1; }
             50%  { opacity: .2; }
         }
-        /* Código vencido (no atendido a tiempo): la tarjeta queda ROJA fija, sin
-           parpadeo; sonó un único pitico de vencido. Se quita con "Atendido". */
+        /* Código vencido (no atendido a tiempo): la tarjeta sigue MORADA fija (sin
+           parpadear) y solo el reloj se pone rojo. El morado se quita cuando el
+           operador responde con otra opción (la tarjeta vuelve a verde). */
         .client-card.is-expired {
-            box-shadow: inset 0 3px 0 #ef4444, 0 0 10px 1px rgba(239,68,68,.40) !important;
+            box-shadow: inset 0 3px 0 #a855f7, 0 0 10px 1px rgba(168,85,247,.40) !important;
         }
     </style>
 </head>
