@@ -244,6 +244,39 @@ class ProjectModuleTest extends TestCase
         $this->assertLessThan(strpos($view->js, 'window.B'), strpos($view->js, 'window.A'));
     }
 
+    public function test_sube_varios_archivos_quita_el_link_y_script_del_html_original(): void
+    {
+        // Si el HTML subido es la plantilla real del sitio, trae su propio
+        // <link href="estilos.css"> y <script src="app.js">. Al subir también esos
+        // archivos, su contenido se fusiona Y la etiqueta debe quitarse: si sobrevive,
+        // el navegador la busca de nuevo al embeber la vista en otra página.
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'MultiConEtiquetas'])->assertRedirect();
+        $project = Project::firstWhere('name', 'MultiConEtiquetas');
+
+        $html = '<link href="estilos.css" rel="stylesheet">'
+            .'<script src="app.js">/* respaldo */</script>'
+            .'<form id="f"><input name="a"><button type="submit">Ir</button></form>';
+
+        $this->actingAs($admin)->post(route('projects.views.store', $project), [
+            'name' => 'Login',
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $html),
+                UploadedFile::fake()->createWithContent('estilos.css', '.x{color:red}'),
+                UploadedFile::fake()->createWithContent('app.js', 'window.X=1;'),
+            ],
+        ])->assertRedirect();
+
+        $view = $project->fresh('views')->views->first();
+
+        $this->assertStringContainsString('.x{color:red}', (string) $view->css);
+        $this->assertStringContainsString('window.X=1;', (string) $view->js);
+        $this->assertStringNotContainsString('<link', $view->html);
+        $this->assertStringNotContainsString('<script', $view->html);
+        $this->assertStringNotContainsString('estilos.css', $view->html);
+        $this->assertStringNotContainsString('app.js', $view->html);
+    }
+
     public function test_incrusta_fuentes_woff_en_el_font_face(): void
     {
         $admin = $this->admin();

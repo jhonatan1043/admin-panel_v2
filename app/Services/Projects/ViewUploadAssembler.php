@@ -98,6 +98,19 @@ class ViewUploadAssembler
             $css = $this->inlineAssetsCss($css, $assets);
         }
 
+        // El HTML original (si es la plantilla real del sitio) trae su propio
+        // <link href="estilo.css">/<script src="app.js">: ya se fusionó su contenido
+        // arriba, así que esa etiqueta se quita. Si no se quitara, el navegador la
+        // buscaría de nuevo al embeber la vista en otra página (no contra el sitio
+        // original), dando 404/MIME erróneo aunque el archivo real sí se haya subido.
+        $html = (string) $html;
+        foreach (array_keys($cssFiles) as $name) {
+            $html = $this->stripTagByAsset($html, 'link', 'href', $this->basename($name));
+        }
+        foreach (array_keys($jsFiles) as $name) {
+            $html = $this->stripTagByAsset($html, 'script', 'src', $this->basename($name));
+        }
+
         return [
             $html,
             $css !== '' ? $css : null,
