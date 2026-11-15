@@ -174,6 +174,23 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('randomUUID', $js);
     }
 
+    public function test_el_bundle_simula_domcontentloaded_sin_recursion_infinita(): void
+    {
+        // Muchos sitios inicializan su JS en DOMContentLoaded/load: el bundle lo simula
+        // tras dibujar cada vista para que esa lógica sí corra, pero su propio listener
+        // de arranque debe ser {once:true} (si no, ese mismo disparo re-ejecuta init(),
+        // que vuelve a dibujar y a disparar el evento: bucle infinito / RangeError).
+        [, $project] = $this->makeIntegratedProject();
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+
+        $this->assertStringContainsString('dispatchEvent(new Event("DOMContentLoaded"))', $js);
+        $this->assertStringContainsString('dispatchEvent(new Event("load"))', $js);
+        $this->assertMatchesRegularExpression(
+            '/addEventListener\("DOMContentLoaded",\s*init,\s*\{\s*once:\s*true\s*\}\)/',
+            $js
+        );
+    }
+
     public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
     {
         $viejo = Company::create([

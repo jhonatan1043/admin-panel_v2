@@ -302,6 +302,16 @@ class ProjectBundleGenerator
         // el JS propio de la vista. Así dependencias como jQuery están listas antes.
         runScripts(m, function () {
             runJs(v.js || "");
+            // Muchos sitios inicializan su propia lógica en DOMContentLoaded/load (p. ej.
+            // "document.addEventListener('DOMContentLoaded', ...)" dentro del JS de la
+            // vista). Como la página real ya pasó por esos eventos hace rato, se simulan
+            // aquí para que esa inicialización SÍ corra. El listener de arranque del
+            // bundle (más abajo) usa {once:true}, así este disparo no lo vuelve a llamar
+            // ni reinicia el render (antes causaba un RangeError por recursión infinita).
+            try {
+                document.dispatchEvent(new Event("DOMContentLoaded"));
+                window.dispatchEvent(new Event("load"));
+            } catch (e) { /* no debe romper el bundle */ }
             emit("view", { view: slug });
             if (slug === CONFIG.loading) startPoll();
         });
@@ -352,7 +362,10 @@ class ProjectBundleGenerator
         startPresence(); // marca "en línea" apenas abre la página
         render(CONFIG.primary || Object.keys(CONFIG.views)[0]);
     }
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    // {once:true}: el DOMContentLoaded que render() simula más arriba (para que el JS
+    // de cada vista inicialice bien) NO debe volver a llamar a init() ni a re-dibujar
+    // la vista principal una y otra vez.
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
     else init();
 })();
 JS;
