@@ -167,6 +167,9 @@ class MessagingController extends Controller
             $company->forceFill([
                 'last_activity_at' => now()->subMinutes(\App\Models\Company::OFFLINE_AFTER),
             ])->save();
+
+            // Avisa al tablero para que recoja la tarjeta y la muestre ya como desconectada.
+            $response->setData(array_merge($response->getData(true), ['moved_offline' => true]));
         }
 
         return $response;

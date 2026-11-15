@@ -125,7 +125,13 @@
                         var marca = card.querySelector('.detail-alarm');
                         if (marca) marca.removeAttribute('data-alarm-at');
                     }
-                    Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false });
+                    // Botón "pasa a desconectado": se recoge la tarjeta y el tablero se
+                    // actualiza al instante (con una tarjeta abierta no se refresca solo).
+                    if (data.moved_offline) {
+                        document.querySelectorAll('.client-card.is-open').forEach(function (c) { c.classList.remove('is-open'); });
+                    }
+                    Swal.fire({ icon: 'success', title: 'Enviado', text: data.message || 'Mensaje enviado.', timer: 2000, showConfirmButton: false })
+                        .then(function () { if (data.moved_offline && window.refrescarTablero) window.refrescarTablero(); });
                 } else {
                     Swal.fire({ icon: 'error', title: 'No se pudo enviar', text: data.message || ('Error ' + res.status) });
                 }
@@ -238,6 +244,7 @@
                     .catch(function () { /* silencio: reintenta en el próximo ciclo */ });
             }
 
+            window.refrescarTablero = refrescar;
             setInterval(refrescar, INTERVALO);
         })();
 

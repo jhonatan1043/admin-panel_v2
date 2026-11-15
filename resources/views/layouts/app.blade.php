@@ -17,6 +17,8 @@
         /* Colapso independiente de Tailwind: el cuerpo solo se ve en la tarjeta abierta. */
         .card-body { display: none; }
         .client-card.is-open .card-body { display: block; }
+        /* "Atendido" solo se ve con la tarjeta abierta; recogida, se oculta. */
+        .client-card:not(.is-open) .btn-atendido { display: none; }
         /* Scrollbar con estilo para el detalle. */
         .detail-scroll { scrollbar-width: thin; scrollbar-color: rgba(16,185,129,.45) transparent; }
         .detail-scroll::-webkit-scrollbar { width: 6px; }
