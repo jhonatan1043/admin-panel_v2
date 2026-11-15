@@ -191,6 +191,25 @@ class ProjectModuleTest extends TestCase
         );
     }
 
+    public function test_el_bundle_aisla_el_js_de_cada_vista_y_expone_sus_funciones(): void
+    {
+        // Caso real detectado en producción: dos vistas distintas de un mismo proyecto
+        // reutilizan el mismo nombre de variable interna (ej. "const continueButton =
+        // ..."). Sin aislar, la segunda vista rompe con "Identifier ... already been
+        // declared" y SU SCRIPT ENTERO deja de ejecutarse (un error de sintaxis invalida
+        // todo el script, no solo esa línea) — así que ninguna de sus funciones corre.
+        [, $project] = $this->makeIntegratedProject();
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+
+        // El JS de cada vista (no-módulo) se envuelve en su propia función: así "const"/
+        // "let" quedan locales a esa vista en vez de compartir el ámbito global con
+        // las demás, y sus funciones de nivel superior se re-exponen en window para
+        // que un onclick="..." del HTML las siga encontrando.
+        $this->assertStringContainsString('function topLevelFnNames(js)', $js);
+        $this->assertStringContainsString('s.text = "(function(){"', $js);
+        $this->assertStringContainsString('==="function")window.\' + n + \'=\' + n', $js);
+    }
+
     public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
     {
         $viejo = Company::create([
@@ -693,6 +712,39 @@ class ProjectModuleTest extends TestCase
         // El enlace <a href="otra.html"> quedó remapeado para abrir esa vista en el embed.
         $this->assertStringContainsString('data-ew-view="'.$otra->slug.'"', $index->html);
         $this->assertStringNotContainsString('href="otra.html"', $index->html);
+    }
+
+    public function test_importar_carpeta_fusiona_los_arroba_import_del_css(): void
+    {
+        // @import url("auth-layout.css") dentro de un CSS NUNCA se revisaba: la
+        // etiqueta <link> del CSS principal se quitaba bien, pero el archivo importado
+        // por @import se quedaba sin fusionar y, si sobrevivía como referencia, el
+        // navegador lo buscaba contra la página donde se embebe la vista (MIME erróneo).
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'SitioImport'])->assertRedirect();
+        $project = Project::firstWhere('name', 'SitioImport');
+
+        $index = '<link href="style.css" rel="stylesheet"><div>hola</div>';
+        $styleCss = '@import url("auth-layout.css"); body{color:blue}';
+        $authCss = '.auth{background:url("bg.png")}';
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $index),
+                UploadedFile::fake()->createWithContent('style.css', $styleCss),
+                UploadedFile::fake()->createWithContent('auth-layout.css', $authCss),
+                UploadedFile::fake()->createWithContent('bg.png', 'PNGDATA'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/style.css', 'sitio/auth-layout.css', 'sitio/bg.png'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $view = $project->refresh()->indexView();
+        $this->assertStringContainsString('.auth{background', (string) $view->css);
+        $this->assertStringContainsString('data:image/png;base64,', (string) $view->css);
+        $this->assertStringContainsString('body{color:blue}', (string) $view->css);
+        $this->assertStringNotContainsString('@import', (string) $view->css);
+        $this->assertStringNotContainsString('auth-layout.css', (string) $view->css);
+        $this->assertStringNotContainsString('auth-layout.css', $view->html);
     }
 
     public function test_importar_carpeta_quita_la_etiqueta_script_con_contenido_de_respaldo(): void

@@ -228,6 +228,9 @@ class ProjectFolderImporter
         $missing = [];
         $assets = []; // archivos asociados: ['name'=>, 'type'=> css|js|imagen|fuente]
 
+        // @import de otro .css (fusiona su contenido, con sus propias url()/@import
+        // resueltas relativas a SU carpeta) antes de resolver url() del propio CSS.
+        $css = $this->inlineCssImports($css, $dir, $byPath, $oversize, $missing, $assets);
         // url() del <style> y de estilos en línea del HTML: relativos a la página.
         $css = $this->inlineCssUrls($css, $dir, $byPath, $oversize, $missing, $assets);
         $html = $this->inlineCssUrls($html, $dir, $byPath, $oversize, $missing, $assets);
@@ -248,7 +251,9 @@ class ProjectFolderImporter
             $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? self::FONT_MIME[$file['ext']] ?? null) : null;
             if ($file && $file['ext'] === 'css') {
                 if (! isset($cssYaFusionado[$resolved])) {
-                    $css = $this->joinText([$css, $this->inlineCssUrls($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing, $assets)]);
+                    $linked = $this->inlineCssImports($file['contents'], $this->dir($resolved), $byPath, $oversize, $missing, $assets);
+                    $linked = $this->inlineCssUrls($linked, $this->dir($resolved), $byPath, $oversize, $missing, $assets);
+                    $css = $this->joinText([$css, $linked]);
                     $cssYaFusionado[$resolved] = true;
                     $assets[] = ['name' => $this->base($resolved), 'type' => 'css'];
                 }
@@ -326,6 +331,43 @@ class ProjectFolderImporter
             'name' => $this->base($resolved),
             'reason' => isset($oversize[$resolved]) ? 'tamaño' : 'no existe',
         ];
+    }
+
+    /**
+     * Resuelve @import de un CSS: fusiona el archivo importado (con sus propias
+     * url()/@import, resueltas relativas a SU carpeta) en el lugar del @import, y
+     * quita la declaración. Si no se puede incrustar, también se quita (de lo contrario
+     * el navegador la buscaría contra la página donde se embebe la vista, no contra el
+     * sitio original, y daría el mismo MIME erróneo que un <link> colgando).
+     */
+    private function inlineCssImports(string $css, string $dir, array $byPath, array $oversize, array &$missing, array &$assets, array $seen = []): string
+    {
+        return (string) preg_replace_callback(
+            '/@import\s+(?:url\(\s*)?["\']([^"\')]+)["\']\s*\)?[^;]*;/i',
+            function (array $m) use ($dir, $byPath, $oversize, &$missing, &$assets, $seen) {
+                $resolved = $this->resolve($dir, $m[1]);
+                if ($resolved === null) {
+                    return $m[0]; // absoluto/externo (otra CDN): se deja igual
+                }
+                if (isset($seen[$resolved])) {
+                    return ''; // import circular: ya se está incrustando, se descarta
+                }
+                $file = $byPath[$resolved] ?? null;
+                if ($file && $file['ext'] === 'css') {
+                    $assets[] = ['name' => $this->base($resolved), 'type' => 'css'];
+                    $inner = $this->inlineCssImports(
+                        $file['contents'], $this->dir($resolved), $byPath, $oversize, $missing, $assets,
+                        $seen + [$resolved => true]
+                    );
+
+                    return $this->inlineCssUrls($inner, $this->dir($resolved), $byPath, $oversize, $missing, $assets);
+                }
+                $missing[] = $this->miss($resolved, $oversize);
+
+                return '';
+            },
+            $css
+        );
     }
 
     /** Reescribe url(...) a data: (imágenes/fuentes) relativo a $dir; anota faltantes y asociados. */

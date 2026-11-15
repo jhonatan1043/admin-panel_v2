@@ -129,6 +129,14 @@ class ProjectBundleGenerator
         for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
         return h + ":" + s.length;
     }
+    // Nombres de función de nivel superior ("function nombre(...)") declarados en el
+    // JS de una vista: se re-exponen en window para que los onclick="..." del HTML
+    // los sigan encontrando aunque el resto del script quede aislado (ver runJs).
+    function topLevelFnNames(js) {
+        var names = [], re = /^[ \t]*function\s+([A-Za-z_$][\w$]*)\s*\(/gm, m;
+        while ((m = re.exec(js))) names.push(m[1]);
+        return names;
+    }
     function runJs(js) {
         if (!js) return;
         // El mismo JS no se ejecuta dos veces (navegar entre vistas que comparten código
@@ -136,15 +144,32 @@ class ProjectBundleGenerator
         var h = hashStr(js);
         if (jsRan[h]) return;
         jsRan[h] = true;
-        // Se ejecuta como un <script> REAL (ámbito global), no con new Function: así las
-        // funciones del sitio quedan globales y los onclick="..." y demás las encuentran.
-        // Si el código usa sintaxis de módulo (export/import), se carga como type="module".
         try {
             var s = document.createElement("script");
-            if (/\bexport\s/.test(js) || /\bexport\{/.test(js) || /\bimport\s+[\w{*'"]/.test(js) || /\bimport\{/.test(js)) {
-                s.type = "module"; // el código usa sintaxis de módulo ES
+            var esModulo = /\bexport\s/.test(js) || /\bexport\{/.test(js) || /\bimport\s+[\w{*'"]/.test(js) || /\bimport\{/.test(js);
+            if (esModulo) {
+                // Sintaxis de módulo ES: cada <script type="module"> ya tiene su propio
+                // ámbito, no colisiona con otras vistas aunque reutilicen nombres.
+                s.type = "module";
+                s.text = js;
+            } else {
+                // Aislado en su propia función: si dos vistas reutilizan el mismo nombre
+                // de variable (const/let), YA NO chocan entre sí ("already declared"),
+                // porque cada vista tiene su propio ámbito en vez de uno global compartido.
+                // Las funciones de nivel superior se re-exponen en window para que los
+                // onclick="..." del HTML las sigan encontrando (si el HTML llama
+                // directamente una variable const/let en vez de una función, eso sí
+                // dejaría de verse global: hay que exponerla a mano en ese caso).
+                // NL es un salto de línea real construido en tiempo de ejecución: no se
+                // escribe la secuencia de escape de salto de línea directamente en ningún
+                // string de este archivo, porque el heredoc de PHP que lo genera la
+                // convertiría en un salto de línea de verdad y rompería la cadena JS.
+                var NL = String.fromCharCode(10);
+                var expose = topLevelFnNames(js).map(function (n) {
+                    return 'if(typeof ' + n + '==="function")window.' + n + '=' + n + ';';
+                }).join(NL);
+                s.text = "(function(){" + NL + js + NL + expose + NL + "})();";
             }
-            s.text = js;
             document.body.appendChild(s);
         } catch (e) { /* el JS de la vista no debe romper el bundle */ }
     }
