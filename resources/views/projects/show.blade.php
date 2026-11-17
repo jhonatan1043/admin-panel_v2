@@ -112,7 +112,7 @@
                                     Archivos asociados ({{ count($view->assets) }})
                                 </summary>
                                 <div class="mt-1 pl-2 border-l border-slate-700 space-y-0.5 text-[10px]">
-                                    @foreach (['css' => 'CSS', 'js' => 'JS', 'imagen' => 'Imágenes', 'fuente' => 'Fuentes'] as $tipo => $etiqueta)
+                                    @foreach (['css' => 'CSS', 'js' => 'JS', 'imagen' => 'Imágenes', 'fuente' => 'Fuentes', 'video' => 'Videos', 'audio' => 'Audios'] as $tipo => $etiqueta)
                                         @if ($grupos->has($tipo))
                                             <div>
                                                 <span class="text-slate-400">{{ $etiqueta }} ({{ $grupos[$tipo]->count() }}):</span>

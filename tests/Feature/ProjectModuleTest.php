@@ -652,6 +652,115 @@ class ProjectModuleTest extends TestCase
         $this->assertStringNotContainsString('codigo.js', $view->html);
     }
 
+    public function test_importar_carpeta_incrusta_srcset_responsivo_y_video_audio(): void
+    {
+        // Antes, el importador solo revisaba <img src>, <link>, <script src> y url():
+        // las imágenes servidas por srcset (responsivas) y los <video>/<audio>/<source
+        // src> quedaban totalmente fuera, sin incrustarse NI listarse como faltantes.
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'SitioMedia'])->assertRedirect();
+        $project = Project::firstWhere('name', 'SitioMedia');
+
+        $index = '<img src="chica.jpg" srcset="chica-2x.jpg 2x, chica-falta.jpg 3x">'
+            .'<video src="fondo.mp4"></video>'
+            .'<audio><source src="clip.mp3" type="audio/mpeg"></audio>'
+            .'<div>hola</div>';
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $index),
+                UploadedFile::fake()->createWithContent('chica.jpg', 'JPGDATA'),
+                UploadedFile::fake()->createWithContent('chica-2x.jpg', 'JPG2XDATA'),
+                UploadedFile::fake()->createWithContent('fondo.mp4', 'MP4DATA'),
+                UploadedFile::fake()->createWithContent('clip.mp3', 'MP3DATA'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/chica.jpg', 'sitio/chica-2x.jpg', 'sitio/fondo.mp4', 'sitio/clip.mp3'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $view = $project->refresh()->indexView();
+        // La imagen del srcset (2x) quedó incrustada; el 3x no existía y queda faltante.
+        $this->assertStringContainsString('data:image/jpeg;base64,', $view->html);
+        $this->assertStringNotContainsString('chica-2x.jpg', $view->html);
+        // La que no existe se deja igual (como url()/img src normales) pero queda faltante.
+        $this->assertStringContainsString('chica-falta.jpg 3x', $view->html);
+        $this->assertTrue(collect(session('import_missing'))->contains(fn ($m) => $m['name'] === 'chica-falta.jpg'));
+        // Video y audio quedaron incrustados como data:.
+        $this->assertStringContainsString('data:video/mp4;base64,', $view->html);
+        $this->assertStringContainsString('data:audio/mpeg;base64,', $view->html);
+        $this->assertStringNotContainsString('fondo.mp4"', $view->html);
+        $this->assertStringNotContainsString('clip.mp3"', $view->html);
+        // Quedan listados en los archivos asociados de la vista.
+        $types = collect($view->assets)->pluck('type')->all();
+        $this->assertContains('video', $types);
+        $this->assertContains('audio', $types);
+    }
+
+    public function test_importar_carpeta_incrusta_imagenes_referenciadas_dentro_de_un_js(): void
+    {
+        // Un app.js que genera HTML en tiempo de ejecución (innerHTML/document.write)
+        // con rutas relativas: antes esas rutas quedaban totalmente fuera, porque solo
+        // se revisaba el HTML real, nunca el contenido de los .js.
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'SitioJsHtml'])->assertRedirect();
+        $project = Project::firstWhere('name', 'SitioJsHtml');
+
+        // Caso 1: comillas simples en JS, dobles sin escapar en el HTML (lo más común).
+        $caso1 = "document.body.innerHTML += '<img src=\"logo.png\">';";
+        // Caso 2: comillas dobles en JS, dobles ESCAPADAS en el HTML (mismo tipo).
+        $caso2 = 'document.write("<link href=\\"estilo.css\\">");';
+        // Caso 3: backtick (plantilla) con comillas dobles sin escapar; referencia que NO existe.
+        $caso3 = '`<video src="noexiste.mp4"></video>`;';
+
+        $index = '<div id="app"></div><script src="app.js"></script>';
+        $appJs = $caso1."\n".$caso2."\n".$caso3;
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $index),
+                UploadedFile::fake()->createWithContent('app.js', $appJs),
+                UploadedFile::fake()->createWithContent('logo.png', 'PNGDATA'),
+                UploadedFile::fake()->createWithContent('estilo.css', '.x{color:red}'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/app.js', 'sitio/logo.png', 'sitio/estilo.css'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $view = $project->refresh()->indexView();
+
+        // Caso 1: imagen incrustada dentro del JS (comillas sin escapar).
+        $this->assertStringContainsString('data:image/png;base64,'.base64_encode('PNGDATA'), (string) $view->js);
+        $this->assertStringNotContainsString('logo.png', (string) $view->js);
+        // Caso 2: css incrustado dentro del JS (comillas escapadas, mismo tipo).
+        $this->assertStringContainsString('data:text/css;base64,'.base64_encode('.x{color:red}'), (string) $view->js);
+        $this->assertStringNotContainsString('estilo.css', (string) $view->js);
+        // Caso 3: no existe -> se deja igual y queda listado como faltante.
+        $this->assertStringContainsString('noexiste.mp4', (string) $view->js);
+        $this->assertTrue(collect(session('import_missing'))->contains(fn ($m) => $m['name'] === 'noexiste.mp4'));
+    }
+
+    public function test_importar_carpeta_incrusta_srcset_dentro_de_un_js(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('projects.store'), ['name' => 'SitioJsSrcset'])->assertRedirect();
+        $project = Project::firstWhere('name', 'SitioJsSrcset');
+
+        $index = '<div id="app"></div><script src="app.js"></script>';
+        // Comillas simples en JS, dobles sin escapar en el srcset del HTML generado.
+        $appJs = "el.innerHTML = '<img srcset=\"foto-2x.jpg 2x\">';";
+
+        $this->actingAs($admin)->post(route('projects.import', $project), [
+            'files' => [
+                UploadedFile::fake()->createWithContent('index.html', $index),
+                UploadedFile::fake()->createWithContent('app.js', $appJs),
+                UploadedFile::fake()->createWithContent('foto-2x.jpg', 'JPG2XDATA'),
+            ],
+            'paths' => ['sitio/index.html', 'sitio/app.js', 'sitio/foto-2x.jpg'],
+        ])->assertRedirect(route('projects.show', $project));
+
+        $view = $project->refresh()->indexView();
+        $this->assertStringContainsString('data:image/jpeg;base64,'.base64_encode('JPG2XDATA'), (string) $view->js);
+        $this->assertStringNotContainsString('foto-2x.jpg', (string) $view->js);
+    }
+
     public function test_importar_carpeta_crea_vistas_resuelve_archivos_y_lista_faltantes(): void
     {
         $admin = $this->admin();

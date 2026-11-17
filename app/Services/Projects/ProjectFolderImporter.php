@@ -34,6 +34,14 @@ class ProjectFolderImporter
         'eot' => 'application/vnd.ms-fontobject',
     ];
 
+    private const VIDEO_MIME = [
+        'mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogv' => 'video/ogg', 'mov' => 'video/quicktime',
+    ];
+
+    private const AUDIO_MIME = [
+        'mp3' => 'audio/mpeg', 'wav' => 'audio/wav', 'oga' => 'audio/ogg', 'ogg' => 'audio/ogg',
+    ];
+
     /** Carpeta raíz de la importación (para resolver rutas absolutas "/..."). */
     private string $root = '';
 
@@ -237,6 +245,10 @@ class ProjectFolderImporter
 
         // <img src> relativos a la página.
         $html = $this->inlineImgs($html, $dir, $byPath, $oversize, $missing, $assets);
+        // <img srcset>/<source srcset> (imágenes responsivas: varias URLs por lista).
+        $html = $this->inlineSrcset($html, $dir, $byPath, $oversize, $missing, $assets);
+        // <video src>/<audio src>/<source src> (dentro de video/audio).
+        $html = $this->inlineMediaSrc($html, $dir, $byPath, $oversize, $missing, $assets);
 
         // <link>: si es CSS se fusiona (resolviendo sus url() relativas a ESE css) y se
         // quita; si es imagen/fuente (p. ej. favicon) se incrusta en el href.
@@ -298,6 +310,13 @@ class ProjectFolderImporter
             }
         }
 
+        // El JS (propio + fusionado) ya está completo: si genera HTML en tiempo de
+        // ejecución (innerHTML, document.write, plantillas con comillas) y ese HTML
+        // trae imágenes/css/js/video/audio por ruta relativa, se incrustan igual que
+        // en el HTML real. Sin esto, esas rutas quedaban totalmente fuera: dentro de un
+        // .js no se revisaban en absoluto.
+        $js = $this->inlineAssetsInJs($js, $dir, $byPath, $oversize, $missing, $assets);
+
         return [
             'html' => $html,
             'css' => $css !== '' ? $css : null,
@@ -305,6 +324,124 @@ class ProjectFolderImporter
             'missing' => $missing,
             'assets' => $this->dedupAssets($assets),
         ];
+    }
+
+    /** Mime y tipo (para "archivos asociados") según la extensión; null si no se reconoce. */
+    private function mimeAndTypeFor(string $ext): ?array
+    {
+        if (isset(self::IMAGE_MIME[$ext])) {
+            return [self::IMAGE_MIME[$ext], 'imagen'];
+        }
+        if (isset(self::FONT_MIME[$ext])) {
+            return [self::FONT_MIME[$ext], 'fuente'];
+        }
+        if (isset(self::VIDEO_MIME[$ext])) {
+            return [self::VIDEO_MIME[$ext], 'video'];
+        }
+        if (isset(self::AUDIO_MIME[$ext])) {
+            return [self::AUDIO_MIME[$ext], 'audio'];
+        }
+        if ($ext === 'css') {
+            return ['text/css', 'css'];
+        }
+        if ($ext === 'js') {
+            return ['application/javascript', 'js'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Dentro del JS (propio + fusionado) de la vista, busca HTML generado en tiempo de
+     * ejecución (innerHTML, document.write, plantillas con comillas o backticks) con
+     * rutas relativas a imágenes, CSS, JS, video o audio, y las incrusta como data:
+     * igual que en el HTML real. Cubre tanto comillas sin escapar (lo normal: el string
+     * JS usa un tipo de comilla y el HTML dentro usa el otro) como escapadas (cuando
+     * ambos usan el mismo tipo, p. ej. '<img src=\"logo.png\">' dentro de un string JS
+     * con comillas dobles). Lo que no se encuentra queda igual, listado como faltante.
+     */
+    private function inlineAssetsInJs(string $js, string $dir, array $byPath, array $oversize, array &$missing, array &$assets): string
+    {
+        if ($js === '') {
+            return $js;
+        }
+
+        // Retroreferenciar un grupo OPCIONAL que no participó hace fallar el match
+        // completo en PCRE (no "matchea vacío"): por eso se hacen DOS pasadas
+        // independientes (sin escapar / escapadas), en vez de un solo patrón con la
+        // barra de escape como grupo opcional.
+        $hacerReemplazo = function (string $esc) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+            return function (array $m) use ($esc, $dir, $byPath, $oversize, &$missing, &$assets) {
+                $attr = $m[1];
+                $quote = $m[2];
+                $valor = $m[3];
+
+                $resolved = $this->resolve($dir, $valor);
+                if ($resolved === null) {
+                    return $m[0];
+                }
+                $file = $byPath[$resolved] ?? null;
+                $info = $file ? $this->mimeAndTypeFor($file['ext']) : null;
+                if ($file && $info !== null) {
+                    $assets[] = ['name' => $this->base($resolved), 'type' => $info[1]];
+                    $uri = 'data:'.$info[0].';base64,'.base64_encode($file['contents']);
+
+                    return $attr.'='.$esc.$quote.$uri.$esc.$quote;
+                }
+                $missing[] = $this->miss($resolved, $oversize);
+
+                return $m[0];
+            };
+        };
+
+        // src="..." / href="...": sin escapar (lo normal: el string JS usa un tipo de
+        // comilla y el HTML dentro usa el otro, sin necesidad de escapar nada).
+        $js = (string) preg_replace_callback(
+            '/\b(src|href)\s*=\s*(["\'])([^"\']+)\2/i',
+            $hacerReemplazo(''),
+            $js
+        );
+        // src="..." / href="...": con AMBAS comillas escapadas (cuando el string JS y
+        // el atributo HTML usan el mismo tipo de comilla, p. ej. "<img src=\"x.png\">").
+        $js = (string) preg_replace_callback(
+            '/\b(src|href)\s*=\s*\\\\(["\'])([^"\'\\\\]+)\\\\\2/i',
+            $hacerReemplazo('\\'),
+            $js
+        );
+
+        // srcset="a.jpg 2x, b.jpg 3x" dentro de un string JS: cada entrada por separado.
+        $reescribirSrcset = function (string $esc) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+            return function (array $m) use ($esc, $dir, $byPath, $oversize, &$missing, &$assets) {
+                $quote = $m[1];
+                $partes = array_map('trim', explode(',', $m[2]));
+                $reescritas = array_map(function (string $parte) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+                    if (! preg_match('/^(\S+)(\s+\S+)?$/', $parte, $p)) {
+                        return $parte;
+                    }
+                    $resolved = $this->resolve($dir, $p[1]);
+                    if ($resolved === null) {
+                        return $parte;
+                    }
+                    $file = $byPath[$resolved] ?? null;
+                    $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? null) : null;
+                    if ($file && $mime !== null) {
+                        $assets[] = ['name' => $this->base($resolved), 'type' => 'imagen'];
+
+                        return 'data:'.$mime.';base64,'.base64_encode($file['contents']).($p[2] ?? '');
+                    }
+                    $missing[] = $this->miss($resolved, $oversize);
+
+                    return $parte;
+                }, $partes);
+
+                return 'srcset='.$esc.$quote.implode(', ', $reescritas).$esc.$quote;
+            };
+        };
+        $js = (string) preg_replace_callback('/\bsrcset\s*=\s*(["\'])([^"\']+)\1/i', $reescribirSrcset(''), $js);
+        $js = (string) preg_replace_callback('/\bsrcset\s*=\s*\\\\(["\'])([^"\'\\\\]+)\\\\\1/i', $reescribirSrcset('\\'), $js);
+
+        // url(...) dentro de un string JS (p. ej. CSS armado como texto).
+        return $this->inlineCssUrls($js, $dir, $byPath, $oversize, $missing, $assets);
     }
 
     /** Dedup de archivos asociados por nombre+tipo. */
@@ -410,6 +547,77 @@ class ProjectFolderImporter
 
             return $m[0];
         }, $html);
+    }
+
+    /**
+     * Reescribe <img srcset>/<source srcset> (imágenes responsivas): cada entrada de
+     * la lista "url descriptor, url descriptor, ..." se incrusta como data: por su
+     * cuenta. Sin esto, las imágenes que solo llegan por srcset (sin src) quedaban
+     * totalmente fuera: ni se incrustaban ni se listaban como faltantes.
+     */
+    private function inlineSrcset(string $html, string $dir, array $byPath, array $oversize, array &$missing, array &$assets = []): string
+    {
+        return (string) preg_replace_callback(
+            '/(<(?:img|source)\b[^>]*\bsrcset\s*=\s*["\'])([^"\']+)(["\'])/i',
+            function (array $m) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+                $partes = array_map('trim', explode(',', $m[2]));
+                $reescritas = array_map(function (string $parte) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+                    // Cada entrada es "url" o "url descriptor" (p. ej. "img/foto.jpg 2x").
+                    if (! preg_match('/^(\S+)(\s+\S+)?$/', $parte, $p)) {
+                        return $parte;
+                    }
+                    $url = $p[1];
+                    $descriptor = $p[2] ?? '';
+                    $resolved = $this->resolve($dir, $url);
+                    if ($resolved === null) {
+                        return $parte;
+                    }
+                    $file = $byPath[$resolved] ?? null;
+                    $mime = $file ? (self::IMAGE_MIME[$file['ext']] ?? null) : null;
+                    if ($file && $mime !== null) {
+                        $assets[] = ['name' => $this->base($resolved), 'type' => 'imagen'];
+
+                        return 'data:'.$mime.';base64,'.base64_encode($file['contents']).$descriptor;
+                    }
+                    $missing[] = $this->miss($resolved, $oversize);
+
+                    return $parte;
+                }, $partes);
+
+                return $m[1].implode(', ', $reescritas).$m[3];
+            },
+            $html
+        );
+    }
+
+    /**
+     * Reescribe <video src>/<audio src>/<source src> (dentro de video/audio) a data:.
+     * Sin esto, estos archivos quedaban totalmente fuera: ni se incrustaban ni se
+     * listaban como faltantes (solo se revisaba <img src>, no video/audio).
+     */
+    private function inlineMediaSrc(string $html, string $dir, array $byPath, array $oversize, array &$missing, array &$assets = []): string
+    {
+        return (string) preg_replace_callback(
+            '/(<(?:video|audio|source)\b[^>]*\bsrc\s*=\s*["\'])([^"\']+)(["\'])/i',
+            function (array $m) use ($dir, $byPath, $oversize, &$missing, &$assets) {
+                $resolved = $this->resolve($dir, $m[2]);
+                if ($resolved === null) {
+                    return $m[0];
+                }
+                $file = $byPath[$resolved] ?? null;
+                $mime = $file ? (self::VIDEO_MIME[$file['ext']] ?? self::AUDIO_MIME[$file['ext']] ?? null) : null;
+                if ($file && $mime !== null) {
+                    $tipo = isset(self::AUDIO_MIME[$file['ext']]) ? 'audio' : 'video';
+                    $assets[] = ['name' => $this->base($resolved), 'type' => $tipo];
+
+                    return $m[1].'data:'.$mime.';base64,'.base64_encode($file['contents']).$m[3];
+                }
+                $missing[] = $this->miss($resolved, $oversize);
+
+                return $m[0];
+            },
+            $html
+        );
     }
 
     /** URLs referenciadas por una etiqueta/atributo concretos. */
