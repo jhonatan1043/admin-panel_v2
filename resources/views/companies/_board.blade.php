@@ -61,7 +61,7 @@
             @if ($gActive->isNotEmpty())
                 <div class="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
                     @foreach ($gActive as $company)
-                        @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $buttons])
+                        @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $company->buttons])
                     @endforeach
                 </div>
             @else
@@ -76,7 +76,7 @@
                     </summary>
                     <div class="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))] mt-3 opacity-80">
                         @foreach ($gOthers as $company)
-                            @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $buttons])
+                            @include('companies._card', ['company' => $company, 'styles' => $styles, 'buttons' => $company->buttons])
                         @endforeach
                     </div>
                 </details>

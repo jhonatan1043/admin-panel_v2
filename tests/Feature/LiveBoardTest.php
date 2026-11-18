@@ -29,6 +29,47 @@ class LiveBoardTest extends TestCase
             ->assertSee('REG-0001');
     }
 
+    public function test_la_tarjeta_solo_muestra_los_botones_de_su_propio_proyecto(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $proyectoA = \App\Models\Project::create(['name' => 'Proyecto A']);
+        $vistaA = \App\Models\ProjectView::create(['project_id' => $proyectoA->id, 'name' => 'Vista A', 'html' => '<div>a</div>']);
+        $proyectoB = \App\Models\Project::create(['name' => 'Proyecto B']);
+        $vistaB = \App\Models\ProjectView::create(['project_id' => $proyectoB->id, 'name' => 'Vista B', 'html' => '<div>b</div>']);
+
+        // Al elegir una vista, el botón queda asignado al proyecto de esa vista.
+        Button::create(['label' => 'Solo A', 'text' => 'x', 'project_view_id' => $vistaA->id]);
+        Button::create(['label' => 'Solo B', 'text' => 'x', 'project_view_id' => $vistaB->id]);
+        // Sin vista: sale igual en todas las tarjetas.
+        Button::create(['label' => 'Para todos', 'text' => 'x']);
+
+        Company::create(['registro' => 'REG-A', 'empresa' => 'Proyecto A', 'fecha' => now(), 'last_activity_at' => now()]);
+        Company::create(['registro' => 'REG-B', 'empresa' => 'Proyecto B', 'fecha' => now(), 'last_activity_at' => now()]);
+
+        $html = $this->actingAs($admin)->get('/companies/board')->assertOk()->getContent();
+
+        // Extrae el bloque de cada tarjeta por su registro para no mezclar botones.
+        $posA = strpos($html, 'REG-A');
+        $posB = strpos($html, 'REG-B');
+        $this->assertNotFalse($posA);
+        $this->assertNotFalse($posB);
+        [$inicio, $fin] = $posA < $posB ? [$posA, $posB] : [$posB, $posA];
+        $bloqueUno = substr($html, $inicio, $fin - $inicio);
+        $bloqueDos = substr($html, $fin);
+
+        $bloqueA = $posA < $posB ? $bloqueUno : $bloqueDos;
+        $bloqueB = $posA < $posB ? $bloqueDos : $bloqueUno;
+
+        $this->assertStringContainsString('Solo A', $bloqueA);
+        $this->assertStringNotContainsString('Solo B', $bloqueA);
+        $this->assertStringContainsString('Para todos', $bloqueA);
+
+        $this->assertStringContainsString('Solo B', $bloqueB);
+        $this->assertStringNotContainsString('Solo A', $bloqueB);
+        $this->assertStringContainsString('Para todos', $bloqueB);
+    }
+
     public function test_un_cliente_nuevo_aparece_en_el_siguiente_refresco(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

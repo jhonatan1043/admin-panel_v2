@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Button;
 use App\Models\ClientLog;
 use App\Models\Company;
+use App\Models\ProjectView;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -116,8 +117,13 @@ class CompanyController extends Controller
             ->orderByDesc('last_activity_at')
             ->get();
 
-        // Catálogo global de botones, igual para todos los clientes.
+        // Catálogo global de botones. Un botón que abre una vista queda asignado al
+        // proyecto de esa vista automáticamente; los que no abren vista (solo texto o
+        // URL) no tienen proyecto y salen igual en todas las tarjetas. Cada tarjeta ve
+        // solo los suyos, filtrados más abajo por la empresa de su proyecto.
         $buttons = Button::active(); // desde caché
+        $viewProjectNames = ProjectView::query()->with('project')->get()
+            ->mapWithKeys(fn (ProjectView $v) => [$v->id => optional($v->project)->name]);
 
         // Operadores disponibles para asignar (solo lo usa el admin).
         $operators = auth()->user()->role === 'admin'
@@ -131,6 +137,11 @@ class CompanyController extends Controller
         $codeSignal = 0;
         foreach ($companies as $company) {
             $company->alarm_at = $this->computeAlarmAt($company, $expiryByLabel);
+            // Botones de esta tarjeta: sin proyecto (siempre) + los de SU proyecto.
+            $company->buttons = $buttons->filter(
+                fn (Button $b) => ! $b->project_view_id
+                    || ($viewProjectNames[$b->project_view_id] ?? null) === $company->empresa
+            )->values();
             foreach ($company->logs as $log) {
                 if (! empty($log->is_timed_reply)) {
                     $codeSignal = max($codeSignal, (int) $log->id);
