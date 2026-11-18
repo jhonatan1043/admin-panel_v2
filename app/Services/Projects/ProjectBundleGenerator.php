@@ -137,6 +137,36 @@ class ProjectBundleGenerator
         while ((m = re.exec(js))) names.push(m[1]);
         return names;
     }
+    // Quita "export"/"import" de sintaxis de módulo ES, dejando la declaración o
+    // expresión intacta. Es necesario porque el JS de una vista fusiona VARIOS
+    // archivos originales en un solo bloque: basta que UNA librería (p. ej. un
+    // vendor con "export default algoliasearch;") use sintaxis de módulo para que,
+    // si se ejecutara como type="module", TODO el bloque pase a reglas de módulo
+    // (que SÍ prohíben redeclarar "function" con el mismo nombre, a diferencia de
+    // un script normal) — y ahí chocan funciones de OTRAS páginas sin relación con
+    // esa librería. Como aquí no hay un resolutor real de módulos (todo es un solo
+    // bloque fusionado, sin servir archivos sueltos), un import real nunca iba a
+    // funcionar de todas formas: se quita para que al menos no rompa el análisis.
+    // Nota: escritos como literales de regex (/.../), no como string pasado a
+    // "new RegExp(...)". Si fuera un string, el heredoc de PHP que genera este
+    // archivo deja pasar "\s"/"\b" tal cual (no los reconoce), pero LUEGO el motor
+    // de strings de JS SÍ los reconocería como inválidos y les quitaría la barra en
+    // silencio (sin error), dejando p. ej. "\s" convertido en una "s" literal. Como
+    // literal de regex no hay esa capa de strings en medio: no hace falta escapar
+    // nada especial, y "^" con la bandera "m" ya matchea el inicio de CADA línea.
+    function stripModuleSyntax(js) {
+        // export default X;  ->  X;
+        js = js.replace(/(;|\{|\}|^)([ \t]*)export\s+default\s+/gm, "$1$2");
+        // export const X = ...;  ->  const X = ...;  (declaración intacta, solo sin "export")
+        js = js.replace(/(;|\{|\}|^)([ \t]*)export\s+(?=(const|let|var|function|class|async)\b)/gm, "$1$2");
+        // export { a, b };  ->  (se quita entera: a/b siguen usables localmente igual)
+        js = js.replace(/(;|\{|\}|^)([ \t]*)export\s*\{[^}]*\}\s*;?/gm, "$1$2");
+        // import X from "y"; / import { X } from "y"; / import "y";  ->  (se quita entera)
+        js = js.replace(/(;|\{|\}|^)([ \t]*)import\s+[^;]*?\bfrom\s+["'][^"']*["']\s*;?/gm, "$1$2");
+        js = js.replace(/(;|\{|\}|^)([ \t]*)import\s+["'][^"']*["']\s*;?/gm, "$1$2");
+
+        return js;
+    }
     function runJs(js) {
         if (!js) return;
         // El mismo JS no se ejecuta dos veces (navegar entre vistas que comparten código
@@ -146,30 +176,23 @@ class ProjectBundleGenerator
         jsRan[h] = true;
         try {
             var s = document.createElement("script");
-            var esModulo = /\bexport\s/.test(js) || /\bexport\{/.test(js) || /\bimport\s+[\w{*'"]/.test(js) || /\bimport\{/.test(js);
-            if (esModulo) {
-                // Sintaxis de módulo ES: cada <script type="module"> ya tiene su propio
-                // ámbito, no colisiona con otras vistas aunque reutilicen nombres.
-                s.type = "module";
-                s.text = js;
-            } else {
-                // Aislado en su propia función: si dos vistas reutilizan el mismo nombre
-                // de variable (const/let), YA NO chocan entre sí ("already declared"),
-                // porque cada vista tiene su propio ámbito en vez de uno global compartido.
-                // Las funciones de nivel superior se re-exponen en window para que los
-                // onclick="..." del HTML las sigan encontrando (si el HTML llama
-                // directamente una variable const/let en vez de una función, eso sí
-                // dejaría de verse global: hay que exponerla a mano en ese caso).
-                // NL es un salto de línea real construido en tiempo de ejecución: no se
-                // escribe la secuencia de escape de salto de línea directamente en ningún
-                // string de este archivo, porque el heredoc de PHP que lo genera la
-                // convertiría en un salto de línea de verdad y rompería la cadena JS.
-                var NL = String.fromCharCode(10);
-                var expose = topLevelFnNames(js).map(function (n) {
-                    return 'if(typeof ' + n + '==="function")window.' + n + '=' + n + ';';
-                }).join(NL);
-                s.text = "(function(){" + NL + js + NL + expose + NL + "})();";
-            }
+            js = stripModuleSyntax(js);
+            // Aislado en su propia función: si dos vistas (o dos archivos fusionados en
+            // la misma vista) reutilizan el mismo nombre de variable (const/let), YA NO
+            // chocan entre sí ("already declared"), porque cada JS tiene su propio
+            // ámbito en vez de uno global compartido. Las funciones de nivel superior
+            // se re-exponen en window para que los onclick="..." del HTML las sigan
+            // encontrando (si el HTML llama directamente una variable const/let en vez
+            // de una función, eso sí dejaría de verse global: hay que exponerla a mano).
+            // NL es un salto de línea real construido en tiempo de ejecución: no se
+            // escribe la secuencia de escape de salto de línea directamente en ningún
+            // string de este archivo, porque el heredoc de PHP que lo genera la
+            // convertiría en un salto de línea de verdad y rompería la cadena JS.
+            var NL = String.fromCharCode(10);
+            var expose = topLevelFnNames(js).map(function (n) {
+                return 'if(typeof ' + n + '==="function")window.' + n + '=' + n + ';';
+            }).join(NL);
+            s.text = "(function(){" + NL + js + NL + expose + NL + "})();";
             document.body.appendChild(s);
         } catch (e) { /* el JS de la vista no debe romper el bundle */ }
     }

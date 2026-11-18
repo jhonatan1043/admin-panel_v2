@@ -210,6 +210,22 @@ class ProjectModuleTest extends TestCase
         $this->assertStringContainsString('==="function")window.\' + n + \'=\' + n', $js);
     }
 
+    public function test_el_bundle_neutraliza_export_import_sin_colapsar_todo_el_js_a_modulo(): void
+    {
+        // Caso real detectado en producción: el JS fusionado de una vista mezcla MUCHAS
+        // páginas/archivos originales. Si solo UNA librería vendor (p. ej. Algolia, con
+        // "export default algoliasearch;") usa sintaxis de módulo, antes TODO el bloque
+        // se trataba como type="module" — y los módulos SÍ prohíben redeclarar "function"
+        // con el mismo nombre (a diferencia de un script normal), así que funciones de
+        // OTRAS páginas sin relación con esa librería (p. ej. "function monitorInput")
+        // tumbaban el script completo con "Identifier ... already been declared".
+        [, $project] = $this->makeIntegratedProject();
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+
+        $this->assertStringContainsString('function stripModuleSyntax(js)', $js);
+        $this->assertStringNotContainsString('type = "module"', $js);
+    }
+
     public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
     {
         $viejo = Company::create([
