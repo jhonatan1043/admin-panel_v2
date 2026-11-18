@@ -226,6 +226,23 @@ class ProjectModuleTest extends TestCase
         $this->assertStringNotContainsString('type = "module"', $js);
     }
 
+    public function test_el_bundle_neutraliza_navegacion_que_el_js_de_una_vista_intente_hacer(): void
+    {
+        // Caso real detectado en producción: el JS de una vista trae su propio
+        // guardia ("si no hay tal llave en localStorage, window.location = '/'").
+        // Antes el script entero fallaba al analizarse (ver test de stripModuleSyntax)
+        // y por eso esta línea nunca corría; arreglado eso, SÍ llega a ejecutarse y
+        // navega la página real donde se embebe la vista — si esa página vuelve a
+        // cargar el mismo bundle, queda en bucle. Cada vista debe tener su propio
+        // "window"/"location" que absorben cualquier intento de navegar, sin afectar
+        // el resto de usos normales de "window.X".
+        [, $project] = $this->makeIntegratedProject();
+        $js = $this->get("/embed/{$project->slug}/bundle")->assertOk()->getContent();
+
+        $this->assertStringContainsString('new Proxy(globalThis', $js);
+        $this->assertStringContainsString("if(p==='location')return true", $js);
+    }
+
     public function test_un_cliente_sin_latido_reciente_no_esta_en_linea(): void
     {
         $viejo = Company::create([

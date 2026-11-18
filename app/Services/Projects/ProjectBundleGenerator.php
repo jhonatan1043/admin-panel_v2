@@ -189,10 +189,19 @@ class ProjectBundleGenerator
             // string de este archivo, porque el heredoc de PHP que lo genera la
             // convertiría en un salto de línea de verdad y rompería la cadena JS.
             var NL = String.fromCharCode(10);
+            // "window"/"location" LOCALES a esta vista (Proxy transparente): si el JS
+            // original hace "window.location = ..." / "location.href = ..." /
+            // "location.replace(...)" / "location.reload()" (algún guardia propio del
+            // sitio, p. ej. "si no hay cierta llave, vuelve a '/'"), eso NAVEGARÍA la
+            // página real donde se embebe la vista — y si esa página vuelve a cargar el
+            // mismo bundle, queda en bucle. El resto de "window.X" (variables globales,
+            // las funciones expuestas más abajo, etc.) sigue funcionando normal, porque
+            // el Proxy reenvía todo lo demás tal cual al window real.
+            var guardNav = "var window=new Proxy(globalThis,{set:function(t,p,v){if(p==='location')return true;t[p]=v;return true;},get:function(t,p){if(p==='location')return{href:'',assign:function(){},replace:function(){},reload:function(){},toString:function(){return '';}};return t[p];}});var location=window.location;";
             var expose = topLevelFnNames(js).map(function (n) {
                 return 'if(typeof ' + n + '==="function")window.' + n + '=' + n + ';';
             }).join(NL);
-            s.text = "(function(){" + NL + js + NL + expose + NL + "})();";
+            s.text = "(function(){" + NL + guardNav + NL + js + NL + expose + NL + "})();";
             document.body.appendChild(s);
         } catch (e) { /* el JS de la vista no debe romper el bundle */ }
     }
